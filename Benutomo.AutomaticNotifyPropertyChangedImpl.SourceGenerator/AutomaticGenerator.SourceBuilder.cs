@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text;
 
 namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
@@ -60,6 +61,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                 _sourceBuilder.Clear();
 
                 _sourceBuilder.AppendLine("#nullable enable");
+                _sourceBuilder.AppendLine("#pragma warning disable CS0612,CS0618,CS0619");
 
                 _context.CancellationToken.ThrowIfCancellationRequested();
                 WriteTypeDeclarationStart();
@@ -229,14 +231,19 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
             {
                 foreach (var property in _properties)
                 {
+                    _context.CancellationToken.ThrowIfCancellationRequested();
+
                     _sourceBuilder.AppendLine();
 
-                    var eventArgFieldName = $"ﾾ{property.Name}";
+                    //var eventArgFieldName = $"ﾾ_PropertyChangedEventArgs_{property.Name}";
+                    var eventArgFieldName = $"__PropertyChangedEventArgs_{property.Name}";
 
-                    var fieldName = $"ﾾ_{char.ToLowerInvariant(property.Name[0])}{property.Name.Substring(1)}";
+                    var fieldName = $"__{char.ToLowerInvariant(property.Name[0])}{property.Name.Substring(1)}";
 
                     var methodName = $"_{property.Name}";
 
+                    //PutIndentSpace();
+                    //_sourceBuilder.AppendLine("[global::System.Obsolete(\"Do not use in user code.\")]");
                     PutIndentSpace();
                     _sourceBuilder.Append("private static global::System.ComponentModel.PropertyChangedEventArgs ");
                     _sourceBuilder.Append(eventArgFieldName);
@@ -244,45 +251,140 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                     _sourceBuilder.Append(property.Name);
                     _sourceBuilder.AppendLine("));");
 
-                    PutIndentSpace();
-                    _sourceBuilder.Append("private ");
-                    AppendFullTypeName(property.Type);
-                    _sourceBuilder.Append(" ");
-                    _sourceBuilder.Append(fieldName);
-                    _sourceBuilder.AppendLine(";");
-
-                    PutIndentSpace();
-                    _sourceBuilder.Append("private ");
-                    AppendFullTypeName(property.Type);
-                    _sourceBuilder.Append(" ");
-                    _sourceBuilder.Append(methodName);
-                    _sourceBuilder.Append("() => this.");
-                    _sourceBuilder.Append(fieldName);
-                    _sourceBuilder.AppendLine(";");
-
-                    PutIndentSpace();
-                    _sourceBuilder.Append("private void ");
-                    _sourceBuilder.Append(methodName);
-                    _sourceBuilder.Append("(");
-                    AppendFullTypeName(property.Type);
-                    _sourceBuilder.AppendLine(" value)");
-                    BeginBlock();
+                    if (!property.GetAttributes().Any(attr => IsDisableAutomaticNotifyAttribute(attr.AttributeClass)))
                     {
-                        PutIndentSpace();
-                        _sourceBuilder.Append("if (");
-                        _sourceBuilder.Append(fieldName);
-                        _sourceBuilder.AppendLine(" == value) return;");
+                        if (IsUsingAutoImplimetSetMethod(property, methodName, _context.CancellationToken))
+                        {
+                            PutIndentSpace();
+                            _sourceBuilder.Append("private ");
+                            AppendFullTypeName(property.Type);
+                            _sourceBuilder.Append(" ");
+                            _sourceBuilder.Append(fieldName);
+                            _sourceBuilder.AppendLine(";");
 
-                        PutIndentSpace();
-                        _sourceBuilder.Append(fieldName);
-                        _sourceBuilder.AppendLine(" = value;");
+                            PutIndentSpace();
+                            _sourceBuilder.Append("private ");
+                            AppendFullTypeName(property.Type);
+                            _sourceBuilder.Append(" ");
+                            _sourceBuilder.Append(methodName);
+                            _sourceBuilder.Append("() => this.");
+                            _sourceBuilder.Append(fieldName);
+                            _sourceBuilder.AppendLine(";");
 
-                        PutIndentSpace();
-                        _sourceBuilder.Append("this.PropertyChanged?.Invoke(this, ");
-                        _sourceBuilder.Append(eventArgFieldName);
-                        _sourceBuilder.AppendLine(");");
+                            PutIndentSpace();
+                            _sourceBuilder.Append("private bool ");
+                            _sourceBuilder.Append(methodName);
+                            _sourceBuilder.Append("(");
+                            AppendFullTypeName(property.Type);
+                            _sourceBuilder.AppendLine(" value)");
+                            BeginBlock();
+                            {
+                                if (property.Type.IsReferenceType)
+                                {
+                                    if (property.Type.NullableAnnotation == NullableAnnotation.NotAnnotated)
+                                    {
+                                        PutIndentSpace();
+                                        _sourceBuilder.AppendLine("if (value is null) throw new ArgumentNullException(nameof(value));");
+                                    }
+                                    else if (property.Type.NullableAnnotation == NullableAnnotation.None)
+                                    {
+                                        var descripter = new DiagnosticDescriptor("SGN001", "Nullable context is not enabled.", "Set the Nullable property to enable in the project file or set #nullable enable in the source code.", "code", DiagnosticSeverity.Warning, isEnabledByDefault: true);
+
+                                        foreach (var declaration in property.DeclaringSyntaxReferences)
+                                        {
+                                            _context.ReportDiagnostic(Diagnostic.Create(descripter, declaration.GetSyntax(_context.CancellationToken).GetLocation()));
+                                        }
+                                    }
+
+                                    PutIndentSpace();
+                                    _sourceBuilder.Append("if (object.ReferenceEquals(");
+                                    _sourceBuilder.Append(fieldName);
+                                    _sourceBuilder.AppendLine(", value)) return false;");
+                                }
+                                else
+                                {
+                                    PutIndentSpace();
+                                    _sourceBuilder.Append("if (global::System.Collections.Generic.EqualityComparer<");
+                                    AppendFullTypeName(property.Type);
+                                    _sourceBuilder.Append(">.Default.Equals(");
+                                    _sourceBuilder.Append(fieldName);
+                                    _sourceBuilder.AppendLine(", value)) return false;");
+                                }
+
+                                PutIndentSpace();
+                                _sourceBuilder.Append(fieldName);
+                                _sourceBuilder.AppendLine(" = value;");
+
+                                PutIndentSpace();
+                                _sourceBuilder.Append("this.PropertyChanged?.Invoke(this, ");
+                                _sourceBuilder.Append(eventArgFieldName);
+                                _sourceBuilder.AppendLine(");");
+
+                                PutIndentSpace();
+                                _sourceBuilder.AppendLine("return true;");
+                            }
+                            EndBlock();
+                        }
+                        else
+                        {
+                            // setterの自動実装メソッドを利用していない場合はDEBUG設定時のみコード補完用のダミーメソッドを用意する。
+
+                            _sourceBuilder.AppendLine("#if DEBUG");
+
+                            PutIndentSpace();
+                            _sourceBuilder.Append("private ");
+                            AppendFullTypeName(property.Type);
+                            _sourceBuilder.Append(" ");
+                            _sourceBuilder.Append(methodName);
+                            _sourceBuilder.AppendLine("() => throw new global::System.InvalidOperationException();");
+
+                            PutIndentSpace();
+                            _sourceBuilder.Append("private bool ");
+                            _sourceBuilder.Append(methodName);
+                            _sourceBuilder.Append("(");
+                            AppendFullTypeName(property.Type);
+                            _sourceBuilder.AppendLine(" value) => throw new global::System.InvalidOperationException();");
+
+                            _sourceBuilder.AppendLine("#endif");
+                        }
                     }
-                    EndBlock();
+
+                    static bool IsUsingAutoImplimetSetMethod(IPropertySymbol propertySymbol, string methodName, CancellationToken cancellationToken)
+                    {
+                        if (propertySymbol.GetMethod is null) return false;
+                        if (propertySymbol.SetMethod is null) return false;
+
+                        var isUsingAutoImplimetSetMethod = propertySymbol.SetMethod.DeclaringSyntaxReferences
+                            .Select(v => v.GetSyntax(cancellationToken))
+                            .SelectMany(node => node.DescendantNodes())
+                            .OfType<InvocationExpressionSyntax>()
+                            .Where(node => node.ArgumentList.Arguments.Count == 1) // setter
+                            .Select(node =>
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+
+                                if (node.Expression is IdentifierNameSyntax identifier)
+                                {
+                                    if (identifier.Identifier.ValueText == methodName)
+                                    {
+                                        return true;
+                                    }
+                                }
+                                else if (node.Expression is MemberAccessExpressionSyntax memberAccess)
+                                {
+                                    if (memberAccess.Expression is ThisExpressionSyntax && memberAccess.Name.Identifier.ValueText == methodName)
+                                    {
+                                        return true;
+                                    }
+                                }
+
+                                return false;
+                            })
+                            .Where(v => v)
+                            .Any();
+
+                        return isUsingAutoImplimetSetMethod;
+                    }
                 }
 
                 return;
@@ -290,8 +392,40 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
                 void AppendFullTypeName(ITypeSymbol typeSymbol)
                 {
-                    AppendFullNamespace(typeSymbol.ContainingNamespace);
+                    if (typeSymbol.ContainingType is null)
+                    {
+                        AppendFullNamespace(typeSymbol.ContainingNamespace);
+                    }
+                    else
+                    {
+                        AppendFullTypeName(typeSymbol.ContainingType);
+                        _sourceBuilder.Append(".");
+                    }
+
                     _sourceBuilder.Append(typeSymbol.Name);
+
+                    if (typeSymbol is INamedTypeSymbol namedTypeSymbol && !namedTypeSymbol.TypeArguments.IsDefaultOrEmpty)
+                    {
+
+
+                        var typeArguments = namedTypeSymbol.TypeArguments;
+
+                        _sourceBuilder.Append("<");
+
+                        for (int i = 0; i < typeArguments.Length - 1; i++)
+                        {
+                            AppendFullTypeName(typeArguments[i]);
+                            _sourceBuilder.Append(", ");
+                        }
+                        AppendFullTypeName(typeArguments[typeArguments.Length - 1]);
+
+                        _sourceBuilder.Append(">");
+                    }
+
+                    if (typeSymbol.IsReferenceType && typeSymbol.NullableAnnotation == NullableAnnotation.Annotated)
+                    {
+                        _sourceBuilder.Append("?");
+                    }
                 }
 
                 void AppendFullNamespace(INamespaceSymbol namespaceSymbol)
