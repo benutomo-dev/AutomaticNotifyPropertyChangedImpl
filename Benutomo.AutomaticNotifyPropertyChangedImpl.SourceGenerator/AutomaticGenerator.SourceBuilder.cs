@@ -271,6 +271,13 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                             _sourceBuilder.Append(fieldName);
                             _sourceBuilder.AppendLine(";");
 
+                            if (property.Type.IsReferenceType && property.Type.NullableAnnotation == NullableAnnotation.NotAnnotated)
+                            {
+                                PutIndentSpace();
+                                _sourceBuilder.Append(@"[global::System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(");
+                                _sourceBuilder.Append(fieldName);
+                                _sourceBuilder.AppendLine(@"))]");
+                            }    
                             PutIndentSpace();
                             _sourceBuilder.Append("private bool ");
                             _sourceBuilder.Append(methodName);
