@@ -19,7 +19,7 @@ namespace SourceGeneratorDebug
         public bool? IsEnabled
         {
             get => _IsEnabled();
-            set => _IsEnabled(value);
+            set => _IsEnabled(value, EqualityComparer<bool?>.Default);
         }
 
 #nullable enable

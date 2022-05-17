@@ -324,6 +324,35 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                                 _sourceBuilder.AppendLine("return true;");
                             }
                             EndBlock();
+
+                            PutIndentSpace();
+                            _sourceBuilder.Append("private bool ");
+                            _sourceBuilder.Append(methodName);
+                            _sourceBuilder.Append("(");
+                            AppendFullTypeName(property.Type);
+                            _sourceBuilder.Append(" value, global::System.Collections.Generic.IEqualityComparer<");
+                            AppendFullTypeName(property.Type);
+                            _sourceBuilder.AppendLine("> equalityComparer) ");
+                            BeginBlock();
+                            {
+                                PutIndentSpace();
+                                _sourceBuilder.Append("if (equalityComparer.Equals(");
+                                _sourceBuilder.Append(fieldName);
+                                _sourceBuilder.AppendLine(", value)) return false;");
+
+                                PutIndentSpace();
+                                _sourceBuilder.Append(fieldName);
+                                _sourceBuilder.AppendLine(" = value;");
+
+                                PutIndentSpace();
+                                _sourceBuilder.Append("this.PropertyChanged?.Invoke(this, ");
+                                _sourceBuilder.Append(eventArgFieldName);
+                                _sourceBuilder.AppendLine(");");
+
+                                PutIndentSpace();
+                                _sourceBuilder.AppendLine("return true;");
+                            }
+                            EndBlock();
                         }
                         else
                         {
@@ -358,7 +387,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                             .Select(v => v.GetSyntax(cancellationToken))
                             .SelectMany(node => node.DescendantNodes())
                             .OfType<InvocationExpressionSyntax>()
-                            .Where(node => node.ArgumentList.Arguments.Count == 1) // setter
+                            .Where(node => node.ArgumentList.Arguments.Count == 1 || node.ArgumentList.Arguments.Count == 2) // setter
                             .Select(node =>
                             {
                                 cancellationToken.ThrowIfCancellationRequested();
