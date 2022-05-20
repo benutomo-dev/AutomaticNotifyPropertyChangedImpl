@@ -15,6 +15,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
         private const string AutomaticNotifyPropertyChangedImplAttributeSource = @"
 using System;
 
+#pragma warning disable CS0436
 #nullable enable
 
 namespace Benutomo
@@ -34,6 +35,7 @@ namespace Benutomo
         private const string EnableAutomaticNotifyAttributeSource = @"
 using System;
 
+#pragma warning disable CS0436
 #nullable enable
 
 namespace Benutomo
@@ -53,6 +55,7 @@ namespace Benutomo
         private const string DisableAutomaticNotifyAttributeSource = @"
 using System;
 
+#pragma warning disable CS0436
 #nullable enable
 
 namespace Benutomo
@@ -97,36 +100,29 @@ namespace Benutomo
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
 
-                try
+                if (!anotatedClassDeclaration.syntaxNode.Modifiers.Any(modifier => modifier.ValueText == "partial"))
                 {
-                    if (!anotatedClassDeclaration.syntaxNode.Modifiers.Any(modifier => modifier.ValueText == "partial"))
-                    {
-                        // AnalyzerでSG0001の報告を実装
-                        continue;
-                    }
-
-                    if (!IsAssignableToINotifyPropertyChanged(anotatedClassDeclaration.symbol))
-                    {
-                        // AnalyzerでSG0002の報告を実装
-                        continue;
-                    }
-
-                    var automaticDisposeAttributeData = anotatedClassDeclaration.symbol.GetAttributes().SingleOrDefault(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, automaticDisposeImplAttributeSymbol));
-                    if (automaticDisposeAttributeData is null)
-                    {
-                        continue;
-                    }
-
-                    var sourceBuilder = new SourceBuilder(context, anotatedClassDeclaration.symbol, automaticDisposeAttributeData);
-
-                    sourceBuilder.Build();
-
-                    context.AddSource(sourceBuilder.HintName, sourceBuilder.SourceText);
+                    // AnalyzerでSG0001の報告を実装
+                    continue;
                 }
-                catch (Exception e) when (false)
+
+                if (!IsAssignableToINotifyPropertyChanged(anotatedClassDeclaration.symbol))
+                {
+                    // AnalyzerでSG0002の報告を実装
+                    continue;
+                }
+
+                var automaticDisposeAttributeData = anotatedClassDeclaration.symbol.GetAttributes().SingleOrDefault(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, automaticDisposeImplAttributeSymbol));
+                if (automaticDisposeAttributeData is null)
                 {
                     continue;
                 }
+
+                var sourceBuilder = new SourceBuilder(context, anotatedClassDeclaration.symbol, automaticDisposeAttributeData);
+
+                sourceBuilder.Build();
+
+                context.AddSource(sourceBuilder.HintName, sourceBuilder.SourceText);
             }
         }
 
