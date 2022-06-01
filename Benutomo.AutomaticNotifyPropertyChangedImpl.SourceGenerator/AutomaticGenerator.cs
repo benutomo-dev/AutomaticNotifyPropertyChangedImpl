@@ -5,7 +5,7 @@ using System.Diagnostics;
 namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 {
     [Generator]
-    public partial class AutomaticGenerator : ISourceGenerator
+    public partial class AutomaticGenerator : IIncrementalGenerator
     {
         internal const string AttributeDefinedNameSpace = "Benutomo";
 
@@ -69,12 +69,29 @@ namespace Benutomo
     }
 }
 ";
-        public void Initialize(GeneratorInitializationContext context)
+
+        public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-            context.RegisterForPostInitialization(PostInitialization);
-            context.RegisterForSyntaxNotifications(() => new SyntaxContextReceiver());
+            context.RegisterPostInitializationOutput(PostInitialization);
+
+            var automaticNotifyPropertyChangedImplAttributeSymbol = context.CompilationProvider
+                .Select((compilation, cancellationToken) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return compilation.GetTypeByMetadataName(AutomaticNotifyPropertyChangedImplAttributeFullyQualifiedMetadataName)!;
+                });
+
+            var anotatedClasses = context.SyntaxProvider
+                .CreateSyntaxProvider(Predicate, Transform)
+                .Where(v => v.typeSymbol is not null)
+                .Combine(automaticNotifyPropertyChangedImplAttributeSymbol)
+                .Select((v, ct) => (v.Left.syntaxNode, v.Left.typeSymbol, automaticDisposeImplAttributeSymbol: v.Right))
+                .Where(v => v.automaticDisposeImplAttributeSymbol is not null);
+
+            context.RegisterSourceOutput(anotatedClasses, Generate);
         }
-        void PostInitialization(GeneratorPostInitializationContext context)
+
+        void PostInitialization(IncrementalGeneratorPostInitializationContext context)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
             context.AddSource($"{AutomaticNotifyPropertyChangedImplAttributeName}.cs", AutomaticNotifyPropertyChangedImplAttributeSource);
@@ -84,6 +101,57 @@ namespace Benutomo
 
             context.CancellationToken.ThrowIfCancellationRequested();
             context.AddSource($"{DisableAutomaticNotifyAttributeName}.cs", DisableAutomaticNotifyAttributeSource);
+        }
+
+        
+        bool Predicate(SyntaxNode node, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return node is ClassDeclarationSyntax
+            {
+                AttributeLists.Count: > 0
+            };
+        }
+
+        (ClassDeclarationSyntax syntaxNode, INamedTypeSymbol typeSymbol) Transform(GeneratorSyntaxContext context, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var classDeclarationSyntax = (ClassDeclarationSyntax)context.Node;
+
+            var namedTypeSymbol = context.SemanticModel.GetDeclaredSymbol(classDeclarationSyntax, cancellationToken) as INamedTypeSymbol;
+
+            return (classDeclarationSyntax, namedTypeSymbol!);
+        }
+
+        void Generate(SourceProductionContext context, (ClassDeclarationSyntax syntaxNode, INamedTypeSymbol typeSymbol, INamedTypeSymbol automaticDisposeImplAttributeSymbol) args)
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            if (!args.syntaxNode.Modifiers.Any(modifier => modifier.ValueText == "partial"))
+            {
+                // AnalyzerでSG0001の報告を実装
+                return;
+            }
+
+            if (!IsAssignableToINotifyPropertyChanged(args.typeSymbol))
+            {
+                // AnalyzerでSG0002の報告を実装
+                return;
+            }
+
+            var automaticDisposeAttributeData = args.typeSymbol.GetAttributes().SingleOrDefault(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, args.automaticDisposeImplAttributeSymbol));
+            if (automaticDisposeAttributeData is null)
+            {
+                return;
+            }
+
+            var sourceBuilder = new SourceBuilder(context, args.typeSymbol, automaticDisposeAttributeData);
+
+            sourceBuilder.Build();
+
+            context.AddSource(sourceBuilder.HintName, sourceBuilder.SourceText);
         }
 
         public void Execute(GeneratorExecutionContext context)
@@ -98,31 +166,6 @@ namespace Benutomo
 
             foreach (var anotatedClassDeclaration in syntaxContextReciever.AnotatedClassDeclarations)
             {
-                context.CancellationToken.ThrowIfCancellationRequested();
-
-                if (!anotatedClassDeclaration.syntaxNode.Modifiers.Any(modifier => modifier.ValueText == "partial"))
-                {
-                    // AnalyzerでSG0001の報告を実装
-                    continue;
-                }
-
-                if (!IsAssignableToINotifyPropertyChanged(anotatedClassDeclaration.symbol))
-                {
-                    // AnalyzerでSG0002の報告を実装
-                    continue;
-                }
-
-                var automaticDisposeAttributeData = anotatedClassDeclaration.symbol.GetAttributes().SingleOrDefault(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, automaticDisposeImplAttributeSymbol));
-                if (automaticDisposeAttributeData is null)
-                {
-                    continue;
-                }
-
-                var sourceBuilder = new SourceBuilder(context, anotatedClassDeclaration.symbol, automaticDisposeAttributeData);
-
-                sourceBuilder.Build();
-
-                context.AddSource(sourceBuilder.HintName, sourceBuilder.SourceText);
             }
         }
 

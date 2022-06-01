@@ -17,7 +17,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
             public string SourceText => _sourceBuilder.ToString();
 
 
-            readonly GeneratorExecutionContext _context;
+            readonly SourceProductionContext _context;
 
             readonly INamedTypeSymbol _classDeclarationSymbol;
 
@@ -34,7 +34,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
             const string indentText = "    ";
 
-            public SourceBuilder(GeneratorExecutionContext context, INamedTypeSymbol classDeclarationSymbol, AttributeData automaticDisposeAttributeData)
+            public SourceBuilder(SourceProductionContext context, INamedTypeSymbol classDeclarationSymbol, AttributeData automaticDisposeAttributeData)
             {
                 _context = context;
                 _classDeclarationSymbol = classDeclarationSymbol;
