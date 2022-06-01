@@ -1,9 +1,11 @@
 ﻿using Benutomo;
 using System.ComponentModel;
+using static Benutomo.NotificationAccessibility;
+
+using CAttribute = Benutomo.EnableNotificationSupportAttribute;
 
 namespace SourceGeneratorDebug
 {
-    [AutomaticNotifyPropertyChangedImpl]
     public partial class Class1 : INotifyPropertyChanged, INotifyPropertyChanging
     {
         public event PropertyChangingEventHandler? PropertyChanging;
@@ -15,7 +17,9 @@ namespace SourceGeneratorDebug
 
         }
 
-        [EnableAutomaticNotify]
+        [EnableNotificationSupport(EventArgsOnly = false)]
+        [ChangedEvent(Public)]
+        [ChangingEvent(Public)]
         public bool? IsEnabled
         {
             get => _IsEnabled();
@@ -23,7 +27,9 @@ namespace SourceGeneratorDebug
         }
 
 #nullable enable
-        [EnableAutomaticNotify]
+        [EnableNotificationSupport]
+        [ChangedEvent]
+        [ChangingEvent]
         public string Text
         {
             get => _Text();
@@ -32,7 +38,7 @@ namespace SourceGeneratorDebug
 #nullable restore
 
 #nullable disable
-        [EnableAutomaticNotify]
+        [EnableNotificationSupport]
         public int Number
         {
             get => _Number();
@@ -40,14 +46,14 @@ namespace SourceGeneratorDebug
         }
 #nullable restore
 
-        [EnableAutomaticNotify]
+        [EnableNotificationSupport]
         public List<Dictionary<(int, string?), long>> X
         {
             get => _X();
             set => _X(value);
         }
 
-        [EnableAutomaticNotify]
+        [EnableNotificationSupport]
         Class2 Inner
         {
             get => _Inner();

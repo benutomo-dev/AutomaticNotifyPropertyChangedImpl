@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
@@ -9,9 +10,9 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
         class SourceBuilder
         {
 #if DEBUG
-            public string HintName => $"gen_{string.Join(".", _hintingTypeNames)}_{string.Join(".", _nameSpaceNames)}_AutomaticNotifyImpl.cs";
+            public string HintName => $"gen_{string.Join(".", _hintingTypeNames)}.{_propertySymbol.Name}_{string.Join(".", _nameSpaceNames)}.cs";
 #else
-            public string HintName => $"gen_{string.Join(".", _hintingTypeNames)}_{string.Join(".", _nameSpaceNames)}_AutomaticNotifyImpl.g.cs";
+            public string HintName => $"gen_{string.Join(".", _hintingTypeNames)}.{_propertySymbol.Name}_{string.Join(".", _nameSpaceNames)}.g.cs";
 #endif
 
             public string SourceText => _sourceBuilder.ToString();
@@ -19,10 +20,21 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
             readonly SourceProductionContext _context;
 
-            readonly INamedTypeSymbol _classDeclarationSymbol;
+            readonly IPropertySymbol _propertySymbol;
 
-            readonly List<IPropertySymbol> _properties;
+            readonly bool _isEventArgsOnly;
 
+            readonly bool _enabledNotifyPropertyChanging;
+
+            readonly bool _enabledNotifyPropertyChanged;
+
+            readonly DeclareState _changedEventDeclareState;
+
+            readonly DeclareState _changingEventDeclareState;
+
+            readonly DeclareState _changedObservableDeclareState;
+
+            readonly DeclareState _changingObservableDeclareState;
 
             readonly List<string> _hintingTypeNames = new List<string>();
 
@@ -34,25 +46,59 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
             const string indentText = "    ";
 
-            public SourceBuilder(SourceProductionContext context, INamedTypeSymbol classDeclarationSymbol, AttributeData automaticDisposeAttributeData)
+            enum DeclareState
+            {
+                None,
+                Public,
+                Protected,
+                Internal,
+                InternalProrected,
+            }
+
+            public SourceBuilder(SourceProductionContext context, IPropertySymbol propertySymbol, UsingSymbols usingSymbols, AttributeData enableNotificationSupportAttributeData)
             {
                 _context = context;
-                _classDeclarationSymbol = classDeclarationSymbol;
+                _propertySymbol = propertySymbol;
 
-                _properties = new();
+                _isEventArgsOnly = enableNotificationSupportAttributeData.NamedArguments.Where(v => v.Key == "EventArgsOnly").Select(v => (bool)(v.Value.Value ?? false)).FirstOrDefault();
 
-                foreach (var member in classDeclarationSymbol.GetMembers())
+                _enabledNotifyPropertyChanging = propertySymbol.ContainingType.AllInterfaces.Any(v => SymbolEqualityComparer.Default.Equals(v, usingSymbols.NotifyPropertyChanging));
+                _enabledNotifyPropertyChanged = propertySymbol.ContainingType.AllInterfaces.Any(v => SymbolEqualityComparer.Default.Equals(v, usingSymbols.NotifyPropertyChanged));
+
+                foreach (var attributeData in propertySymbol.GetAttributes())
                 {
-                    _context.CancellationToken.ThrowIfCancellationRequested();
-
-                    if (member.IsStatic) continue;
-
-                    if (member is IPropertySymbol propertySymbol)
+                    if (SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass, usingSymbols.ChangedEvent))
                     {
-                        if (propertySymbol.IsImplicitlyDeclared) continue;
-
-                        _properties.Add(propertySymbol);
+                        _changedEventDeclareState = GetDeclareState(attributeData);
                     }
+                    else if (SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass, usingSymbols.ChangingEvent))
+                    {
+                        _changingEventDeclareState = GetDeclareState(attributeData);
+                    }
+                    else if (SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass, usingSymbols.ChangedObservable))
+                    {
+                        _changedObservableDeclareState = GetDeclareState(attributeData);
+                    }
+                    else if (SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass, usingSymbols.ChantingObservable))
+                    {
+                        _changingObservableDeclareState = GetDeclareState(attributeData);
+                    }
+                }
+
+                static DeclareState GetDeclareState(AttributeData attributeData)
+                {
+                    if (attributeData.ConstructorArguments.Length == 0) return DeclareState.None;
+
+                    if (attributeData.ConstructorArguments.Length > 1) throw new InvalidOperationException();
+
+                    return attributeData.ConstructorArguments[0].Value switch
+                    {
+                        NotificationAccessibilityPublic => DeclareState.Public,
+                        NotificationAccessibilityInternal => DeclareState.Internal,
+                        NotificationAccessibilityProtected => DeclareState.Protected,
+                        NotificationAccessibilityInternalProtected => DeclareState.InternalProrected,
+                        _ => DeclareState.None,
+                    };
                 }
             }
 
@@ -124,7 +170,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
             void WriteTypeDeclarationStart()
             {
-                WriteContainingTypeStart(_classDeclarationSymbol, isDesingationType: true);
+                WriteContainingTypeStart(_propertySymbol.ContainingType, isDesingationType: true);
 
                 return;
 
@@ -198,7 +244,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
             void WriteTypeDeclarationEnd()
             {
-                WriteContainingTypeEnd(_classDeclarationSymbol);
+                WriteContainingTypeEnd(_propertySymbol.ContainingType);
 
                 return;
 
@@ -230,206 +276,153 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                 }
             }
 
-            void ﾾadsf()
-            {
-
-            }
-
             void WriteBody()
             {
-                foreach (var property in _properties)
+                var property = _propertySymbol;
+
+                _context.CancellationToken.ThrowIfCancellationRequested();
+
+                _sourceBuilder.AppendLine();
+
+                var changedEventArgFieldName = $"__PropertyChangedEventArgs_{property.Name}";
+                var changingEventArgFieldName = $"__PropertyChangingEventArgs_{property.Name}";
+
+                if (_enabledNotifyPropertyChanging)
                 {
-                    _context.CancellationToken.ThrowIfCancellationRequested();
+                    PutIndentSpace();
+                    _sourceBuilder.Append("private static global::System.ComponentModel.PropertyChangingEventArgs ");
+                    _sourceBuilder.Append(changingEventArgFieldName);
+                    _sourceBuilder.Append(" = new global::System.ComponentModel.PropertyChangingEventArgs(nameof(");
+                    _sourceBuilder.Append(property.Name);
+                    _sourceBuilder.AppendLine("));");
+                }
 
-                    _sourceBuilder.AppendLine();
-
-                    //var eventArgFieldName = $"ﾾ_PropertyChangedEventArgs_{property.Name}";
-                    var eventArgFieldName = $"__PropertyChangedEventArgs_{property.Name}";
-
-                    var fieldName = $"__{char.ToLowerInvariant(property.Name[0])}{property.Name.Substring(1)}";
-
-                    var methodName = $"_{property.Name}";
-
-                    //PutIndentSpace();
-                    //_sourceBuilder.AppendLine("[global::System.Obsolete(\"Do not use in user code.\")]");
+                if (_enabledNotifyPropertyChanged)
+                {
                     PutIndentSpace();
                     _sourceBuilder.Append("private static global::System.ComponentModel.PropertyChangedEventArgs ");
-                    _sourceBuilder.Append(eventArgFieldName);
+                    _sourceBuilder.Append(changedEventArgFieldName);
                     _sourceBuilder.Append(" = new global::System.ComponentModel.PropertyChangedEventArgs(nameof(");
                     _sourceBuilder.Append(property.Name);
                     _sourceBuilder.AppendLine("));");
-
-                    if (!property.GetAttributes().Any(attr => IsDisableAutomaticNotifyAttribute(attr.AttributeClass)))
-                    {
-                        if (IsUsingAutoImplimetSetMethod(property, methodName, _context.CancellationToken))
-                        {
-                            PutIndentSpace();
-                            _sourceBuilder.Append("private ");
-                            AppendFullTypeName(property.Type);
-                            _sourceBuilder.Append(" ");
-                            _sourceBuilder.Append(fieldName);
-                            _sourceBuilder.AppendLine(";");
-
-                            PutIndentSpace();
-                            _sourceBuilder.Append("private ");
-                            AppendFullTypeName(property.Type);
-                            _sourceBuilder.Append(" ");
-                            _sourceBuilder.Append(methodName);
-                            _sourceBuilder.Append("() => this.");
-                            _sourceBuilder.Append(fieldName);
-                            _sourceBuilder.AppendLine(";");
-
-                            if (property.Type.IsReferenceType && property.Type.NullableAnnotation == NullableAnnotation.NotAnnotated)
-                            {
-                                PutIndentSpace();
-                                _sourceBuilder.Append(@"[global::System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(");
-                                _sourceBuilder.Append(fieldName);
-                                _sourceBuilder.AppendLine(@"))]");
-                            }    
-                            PutIndentSpace();
-                            _sourceBuilder.Append("private bool ");
-                            _sourceBuilder.Append(methodName);
-                            _sourceBuilder.Append("(");
-                            AppendFullTypeName(property.Type);
-                            _sourceBuilder.AppendLine(" value)");
-                            BeginBlock();
-                            {
-                                if (property.Type.IsReferenceType)
-                                {
-                                    if (property.Type.NullableAnnotation == NullableAnnotation.NotAnnotated)
-                                    {
-                                        PutIndentSpace();
-                                        _sourceBuilder.AppendLine("if (value is null) throw new ArgumentNullException(nameof(value));");
-                                    }
-                                    else if (property.Type.NullableAnnotation == NullableAnnotation.None)
-                                    {
-                                        var descripter = new DiagnosticDescriptor("SGN001", "Nullable context is not enabled.", "Set the Nullable property to enable in the project file or set #nullable enable in the source code.", "code", DiagnosticSeverity.Warning, isEnabledByDefault: true);
-
-                                        foreach (var declaration in property.DeclaringSyntaxReferences)
-                                        {
-                                            _context.ReportDiagnostic(Diagnostic.Create(descripter, declaration.GetSyntax(_context.CancellationToken).GetLocation()));
-                                        }
-                                    }
-
-                                    PutIndentSpace();
-                                    _sourceBuilder.Append("if (object.ReferenceEquals(");
-                                    _sourceBuilder.Append(fieldName);
-                                    _sourceBuilder.AppendLine(", value)) return false;");
-                                }
-                                else
-                                {
-                                    PutIndentSpace();
-                                    _sourceBuilder.Append("if (global::System.Collections.Generic.EqualityComparer<");
-                                    AppendFullTypeName(property.Type);
-                                    _sourceBuilder.Append(">.Default.Equals(");
-                                    _sourceBuilder.Append(fieldName);
-                                    _sourceBuilder.AppendLine(", value)) return false;");
-                                }
-
-                                PutIndentSpace();
-                                _sourceBuilder.Append(fieldName);
-                                _sourceBuilder.AppendLine(" = value;");
-
-                                PutIndentSpace();
-                                _sourceBuilder.Append("this.PropertyChanged?.Invoke(this, ");
-                                _sourceBuilder.Append(eventArgFieldName);
-                                _sourceBuilder.AppendLine(");");
-
-                                PutIndentSpace();
-                                _sourceBuilder.AppendLine("return true;");
-                            }
-                            EndBlock();
-
-                            PutIndentSpace();
-                            _sourceBuilder.Append("private bool ");
-                            _sourceBuilder.Append(methodName);
-                            _sourceBuilder.Append("(");
-                            AppendFullTypeName(property.Type);
-                            _sourceBuilder.Append(" value, global::System.Collections.Generic.IEqualityComparer<");
-                            AppendFullTypeName(property.Type);
-                            _sourceBuilder.AppendLine("> equalityComparer) ");
-                            BeginBlock();
-                            {
-                                PutIndentSpace();
-                                _sourceBuilder.Append("if (equalityComparer.Equals(");
-                                _sourceBuilder.Append(fieldName);
-                                _sourceBuilder.AppendLine(", value)) return false;");
-
-                                PutIndentSpace();
-                                _sourceBuilder.Append(fieldName);
-                                _sourceBuilder.AppendLine(" = value;");
-
-                                PutIndentSpace();
-                                _sourceBuilder.Append("this.PropertyChanged?.Invoke(this, ");
-                                _sourceBuilder.Append(eventArgFieldName);
-                                _sourceBuilder.AppendLine(");");
-
-                                PutIndentSpace();
-                                _sourceBuilder.AppendLine("return true;");
-                            }
-                            EndBlock();
-                        }
-                        else
-                        {
-                            // setterの自動実装メソッドを利用していない場合はDEBUG設定時のみコード補完用のダミーメソッドを用意する。
-
-                            _sourceBuilder.AppendLine("#if DEBUG");
-
-                            PutIndentSpace();
-                            _sourceBuilder.Append("private ");
-                            AppendFullTypeName(property.Type);
-                            _sourceBuilder.Append(" ");
-                            _sourceBuilder.Append(methodName);
-                            _sourceBuilder.AppendLine("() => throw new global::System.InvalidOperationException();");
-
-                            PutIndentSpace();
-                            _sourceBuilder.Append("private bool ");
-                            _sourceBuilder.Append(methodName);
-                            _sourceBuilder.Append("(");
-                            AppendFullTypeName(property.Type);
-                            _sourceBuilder.AppendLine(" value) => throw new global::System.InvalidOperationException();");
-
-                            _sourceBuilder.AppendLine("#endif");
-                        }
-                    }
-
-                    static bool IsUsingAutoImplimetSetMethod(IPropertySymbol propertySymbol, string methodName, CancellationToken cancellationToken)
-                    {
-                        if (propertySymbol.GetMethod is null) return false;
-                        if (propertySymbol.SetMethod is null) return false;
-
-                        var isUsingAutoImplimetSetMethod = propertySymbol.SetMethod.DeclaringSyntaxReferences
-                            .Select(v => v.GetSyntax(cancellationToken))
-                            .SelectMany(node => node.DescendantNodes())
-                            .OfType<InvocationExpressionSyntax>()
-                            .Where(node => node.ArgumentList.Arguments.Count == 1 || node.ArgumentList.Arguments.Count == 2) // setter
-                            .Select(node =>
-                            {
-                                cancellationToken.ThrowIfCancellationRequested();
-
-                                if (node.Expression is IdentifierNameSyntax identifier)
-                                {
-                                    if (identifier.Identifier.ValueText == methodName)
-                                    {
-                                        return true;
-                                    }
-                                }
-                                else if (node.Expression is MemberAccessExpressionSyntax memberAccess)
-                                {
-                                    if (memberAccess.Expression is ThisExpressionSyntax && memberAccess.Name.Identifier.ValueText == methodName)
-                                    {
-                                        return true;
-                                    }
-                                }
-
-                                return false;
-                            })
-                            .Where(v => v)
-                            .Any();
-
-                        return isUsingAutoImplimetSetMethod;
-                    }
                 }
+
+                if (_isEventArgsOnly)
+                {
+                    return;
+                }
+
+                var fieldName = $"__{char.ToLowerInvariant(property.Name[0])}{property.Name.Substring(1)}";
+
+                var methodName = $"_{property.Name}";
+
+
+                if (_changingEventDeclareState != DeclareState.None)
+                {
+                    PutIndentSpace();
+                    _sourceBuilder.Append(ToAccessibilityToken(_changingEventDeclareState));
+                    _sourceBuilder.Append(" event global::System.EventHandler ");
+                    _sourceBuilder.Append(property.Name);
+                    _sourceBuilder.AppendLine("Changing;");
+                }
+
+                if (_changedEventDeclareState != DeclareState.None)
+                {
+                    PutIndentSpace();
+                    _sourceBuilder.Append(ToAccessibilityToken(_changedEventDeclareState));
+                    _sourceBuilder.Append(" event global::System.EventHandler ");
+                    _sourceBuilder.Append(property.Name);
+                    _sourceBuilder.AppendLine("Changed;");
+                }
+
+
+                PutIndentSpace();
+                _sourceBuilder.Append("private ");
+                AppendFullTypeName(property.Type);
+                _sourceBuilder.Append(" ");
+                _sourceBuilder.Append(fieldName);
+                _sourceBuilder.AppendLine(";");
+
+                PutIndentSpace();
+                _sourceBuilder.Append("private ");
+                AppendFullTypeName(property.Type);
+                _sourceBuilder.Append(" ");
+                _sourceBuilder.Append(methodName);
+                _sourceBuilder.Append("() => this.");
+                _sourceBuilder.Append(fieldName);
+                _sourceBuilder.AppendLine(";");
+
+                if (property.Type.IsReferenceType && property.Type.NullableAnnotation == NullableAnnotation.NotAnnotated)
+                {
+                    PutIndentSpace();
+                    _sourceBuilder.Append(@"[global::System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(");
+                    _sourceBuilder.Append(fieldName);
+                    _sourceBuilder.AppendLine(@"))]");
+                }
+                PutIndentSpace();
+                _sourceBuilder.Append("private bool ");
+                _sourceBuilder.Append(methodName);
+                _sourceBuilder.Append("(");
+                AppendFullTypeName(property.Type);
+                _sourceBuilder.AppendLine(" value)");
+                BeginBlock();
+                {
+                    if (property.Type.IsReferenceType)
+                    {
+                        if (property.Type.NullableAnnotation == NullableAnnotation.NotAnnotated)
+                        {
+                            PutIndentSpace();
+                            _sourceBuilder.AppendLine("if (value is null) throw new ArgumentNullException(nameof(value));");
+                        }
+                        else if (property.Type.NullableAnnotation == NullableAnnotation.None)
+                        {
+                            var descripter = new DiagnosticDescriptor("SGN001", "Nullable context is not enabled.", "Set the Nullable property to enable in the project file or set #nullable enable in the source code.", "code", DiagnosticSeverity.Warning, isEnabledByDefault: true);
+
+                            foreach (var declaration in property.DeclaringSyntaxReferences)
+                            {
+                                _context.ReportDiagnostic(Diagnostic.Create(descripter, declaration.GetSyntax(_context.CancellationToken).GetLocation()));
+                            }
+                        }
+
+                        PutIndentSpace();
+                        _sourceBuilder.Append("if (object.ReferenceEquals(");
+                        _sourceBuilder.Append(fieldName);
+                        _sourceBuilder.AppendLine(", value)) return false;");
+                    }
+                    else
+                    {
+                        PutIndentSpace();
+                        _sourceBuilder.Append("if (global::System.Collections.Generic.EqualityComparer<");
+                        AppendFullTypeName(property.Type);
+                        _sourceBuilder.Append(">.Default.Equals(");
+                        _sourceBuilder.Append(fieldName);
+                        _sourceBuilder.AppendLine(", value)) return false;");
+                    }
+
+                    // フィールドの変更と変更前後通知を行う処理
+                    WriteFieldChangeSection();
+                }
+                EndBlock();
+
+                PutIndentSpace();
+                _sourceBuilder.Append("private bool ");
+                _sourceBuilder.Append(methodName);
+                _sourceBuilder.Append("(");
+                AppendFullTypeName(property.Type);
+                _sourceBuilder.Append(" value, global::System.Collections.Generic.IEqualityComparer<");
+                AppendFullTypeName(property.Type);
+                _sourceBuilder.AppendLine("> equalityComparer) ");
+                BeginBlock();
+                {
+                    PutIndentSpace();
+                    _sourceBuilder.Append("if (equalityComparer.Equals(");
+                    _sourceBuilder.Append(fieldName);
+                    _sourceBuilder.AppendLine(", value)) return false;");
+
+                    // フィールドの変更と変更前後通知を行う処理
+                    WriteFieldChangeSection();
+                }
+                EndBlock();
 
                 return;
 
@@ -487,6 +480,58 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
                     _sourceBuilder.Append(namespaceSymbol.Name);
                     _sourceBuilder.Append(".");
+                }
+
+                string ToAccessibilityToken(DeclareState declareState)
+                {
+                    switch (declareState)
+                    {
+                        case DeclareState.Public: return "public";
+                        case DeclareState.Protected: return "protected";
+                        case DeclareState.Internal: return "internal";
+                        case DeclareState.InternalProrected: return "internal protected";
+                        default: throw new InvalidOperationException();
+                    }
+                }
+                
+                void WriteFieldChangeSection()
+                {
+                    if (_changingEventDeclareState != DeclareState.None)
+                    {
+                        PutIndentSpace();
+                        _sourceBuilder.Append(property.Name);
+                        _sourceBuilder.AppendLine("Changing?.Invoke(this, global::System.EventArgs.Empty);");
+                    }
+
+                    if (_enabledNotifyPropertyChanging)
+                    {
+                        PutIndentSpace();
+                        _sourceBuilder.Append("this.PropertyChanging?.Invoke(this, ");
+                        _sourceBuilder.Append(changingEventArgFieldName);
+                        _sourceBuilder.AppendLine(");");
+                    }
+
+                    PutIndentSpace();
+                    _sourceBuilder.Append(fieldName);
+                    _sourceBuilder.AppendLine(" = value;");
+
+                    if (_changedEventDeclareState != DeclareState.None)
+                    {
+                        PutIndentSpace();
+                        _sourceBuilder.Append(property.Name);
+                        _sourceBuilder.AppendLine("Changed?.Invoke(this, global::System.EventArgs.Empty);");
+                    }
+
+                    if (_enabledNotifyPropertyChanged)
+                    {
+                        PutIndentSpace();
+                        _sourceBuilder.Append("this.PropertyChanged?.Invoke(this, ");
+                        _sourceBuilder.Append(changedEventArgFieldName);
+                        _sourceBuilder.AppendLine(");");
+                    }
+
+                    PutIndentSpace();
+                    _sourceBuilder.AppendLine("return true;");
                 }
             }
         }

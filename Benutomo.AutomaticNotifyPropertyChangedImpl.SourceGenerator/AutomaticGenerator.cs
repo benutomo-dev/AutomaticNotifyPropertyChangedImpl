@@ -9,30 +9,9 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
     {
         internal const string AttributeDefinedNameSpace = "Benutomo";
 
-        internal const string AutomaticNotifyPropertyChangedImplAttributeCoreName = "AutomaticNotifyPropertyChangedImpl";
-        internal const string AutomaticNotifyPropertyChangedImplAttributeName = "AutomaticNotifyPropertyChangedImplAttribute";
-        internal const string AutomaticNotifyPropertyChangedImplAttributeFullyQualifiedMetadataName = "Benutomo.AutomaticNotifyPropertyChangedImplAttribute";
-        private const string AutomaticNotifyPropertyChangedImplAttributeSource = @"
-using System;
-
-#pragma warning disable CS0436
-#nullable enable
-
-namespace Benutomo
-{
-    /// <summary>
-    /// Todo
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Class)]
-    internal class AutomaticNotifyPropertyChangedImplAttribute : Attribute
-    {
-    }
-}
-";
-
-        internal const string EnableAutomaticNotifyAttributeName = "EnableAutomaticNotifyAttribute";
-        internal const string EnableAutomaticNotifyAttributeFullyQualifiedMetadataName = "Benutomo.EnableAutomaticNotifyAttribute";
-        private const string EnableAutomaticNotifyAttributeSource = @"
+        internal const string EnableNotificationSupportAttributeName = "EnableNotificationSupportAttribute";
+        internal const string EnableNotificationSupportAttributeFullyQualifiedMetadataName = "Benutomo.EnableNotificationSupportAttribute";
+        private const string EnableNotificationSupportAttributeSource = @"
 using System;
 
 #pragma warning disable CS0436
@@ -44,15 +23,16 @@ namespace Benutomo
     /// Todo
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
-    internal class EnableAutomaticNotifyAttribute : Attribute
+    internal class EnableNotificationSupportAttribute : Attribute
     {
+        public bool EventArgsOnly { get; set; } = false;
     }
 }
 ";
 
-        internal const string DisableAutomaticNotifyAttributeName = "DisableAutomaticNotifyAttribute";
-        internal const string DisableAutomaticNotifyAttributeFullyQualifiedMetadataName = "Benutomo.DisableAutomaticNotifyAttribute";
-        private const string DisableAutomaticNotifyAttributeSource = @"
+        internal const string ChangedEventAttributeName = "ChangedEventAttribute";
+        internal const string ChangedEventAttributeFullyQualifiedMetadataName = "Benutomo.ChangedEventAttribute";
+        private const string ChangedEventAttributeSource = @"
 using System;
 
 #pragma warning disable CS0436
@@ -64,29 +44,161 @@ namespace Benutomo
     /// Todo
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
-    internal class DisableAutomaticNotifyAttribute : Attribute
+    internal class ChangedEventAttribute : Attribute
     {
+        public NotificationAccessibility Accessibility { get; } = NotificationAccessibility.Public;
+
+        public ChangedEventAttribute() {}
+
+        public ChangedEventAttribute(NotificationAccessibility Accessibility) {}
     }
 }
 ";
+
+        internal const string ChangingEventAttributeName = "ChangingEventAttribute";
+        internal const string ChangingEventAttributeFullyQualifiedMetadataName = "Benutomo.ChangingEventAttribute";
+        private const string ChangingEventAttributeSource = @"
+using System;
+
+#pragma warning disable CS0436
+#nullable enable
+
+namespace Benutomo
+{
+    /// <summary>
+    /// Todo
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property)]
+    internal class ChangingEventAttribute : Attribute
+    {
+        public NotificationAccessibility Accessibility { get; } = NotificationAccessibility.Public;
+
+        public ChangingEventAttribute() {}
+
+        public ChangingEventAttribute(NotificationAccessibility Accessibility) {}
+    }
+}
+";
+
+        internal const string ChangedObservableAttributeName = "ChangedObservableAttribute";
+        internal const string ChangedObservableAttributeFullyQualifiedMetadataName = "Benutomo.ChangedObservableAttribute";
+        private const string ChangedObservableAttributeSource = @"
+using System;
+
+#pragma warning disable CS0436
+#nullable enable
+
+namespace Benutomo
+{
+    /// <summary>
+    /// Todo
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property)]
+    internal class ChangedObservableAttribute : Attribute
+    {
+        public NotificationAccessibility Accessibility { get; } = NotificationAccessibility.Public;
+
+        public ChangedObservableAttribute() {}
+
+        public ChangedObservableAttribute(NotificationAccessibility Accessibility) {}
+    }
+}
+";
+
+        internal const string ChangingObservableAttributeName = "ChangingObservableAttribute";
+        internal const string ChangingObservableAttributeFullyQualifiedMetadataName = "Benutomo.ChangingObservableAttribute";
+        private const string ChangingObservableAttributeSource = @"
+using System;
+
+#pragma warning disable CS0436
+#nullable enable
+
+namespace Benutomo
+{
+    /// <summary>
+    /// Todo
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property)]
+    internal class ChangingObservableAttribute : Attribute
+    {
+        public NotificationAccessibility Accessibility { get; } = NotificationAccessibility.Public;
+
+        public ChangingObservableAttribute() {}
+
+        public ChangingObservableAttribute(NotificationAccessibility Accessibility) {}
+    }
+}
+";
+
+        internal const string NotificationAccessibilityName = "NotificationAccessibility";
+        internal const string NotificationAccessibilityFullyQualifiedMetadataName = "Benutomo.NotificationAccessibility";
+        internal const int NotificationAccessibilityPublic = 0;
+        internal const int NotificationAccessibilityProtected = 1;
+        internal const int NotificationAccessibilityInternal = 2;
+        internal const int NotificationAccessibilityInternalProtected = 3;
+        private const string NotificationAccessibilitySource = @"
+using System;
+
+#pragma warning disable CS0436
+#nullable enable
+
+namespace Benutomo
+{
+    /// <summary>
+    /// Todo
+    /// </summary>
+    internal enum NotificationAccessibility : int
+    {
+        Public,
+        Protected,
+        Internal,
+        InternalProtected,
+    }
+}
+";
+
+        record struct UsingSymbols(
+            INamedTypeSymbol EnableNotificationSupportAttribute,
+            INamedTypeSymbol ChangedEvent,
+            INamedTypeSymbol ChangingEvent,
+            INamedTypeSymbol ChangedObservable,
+            INamedTypeSymbol ChantingObservable,
+            INamedTypeSymbol NotifyPropertyChanged,
+            INamedTypeSymbol NotifyPropertyChanging
+            );
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
             context.RegisterPostInitializationOutput(PostInitialization);
 
-            var automaticNotifyPropertyChangedImplAttributeSymbol = context.CompilationProvider
+            var enableNotificationSupportAttributeSymbol = context.CompilationProvider
                 .Select((compilation, cancellationToken) =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    return compilation.GetTypeByMetadataName(AutomaticNotifyPropertyChangedImplAttributeFullyQualifiedMetadataName)!;
+                    var enableNotificationSupportAttributeSymbol = compilation.GetTypeByMetadataName(EnableNotificationSupportAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                    var changedEventAttributeSymbol = compilation.GetTypeByMetadataName(ChangedEventAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                    var changingEventAttributeSymbol = compilation.GetTypeByMetadataName(ChangingEventAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                    var changedObservableAttributeSymbol = compilation.GetTypeByMetadataName(ChangedObservableAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                    var changingObservableAttributeSymbol = compilation.GetTypeByMetadataName(ChangingObservableAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                    var notifyPropertyChangedSymbol = compilation.GetTypeByMetadataName("System.ComponentModel.INotifyPropertyChanged") ?? throw new InvalidOperationException();
+                    var notifyPropertyChangingSymbol = compilation.GetTypeByMetadataName("System.ComponentModel.INotifyPropertyChanging") ?? throw new InvalidOperationException();
+
+                    return new UsingSymbols(
+                        enableNotificationSupportAttributeSymbol,
+                        changedEventAttributeSymbol,
+                        changingEventAttributeSymbol,
+                        changedObservableAttributeSymbol,
+                        changingObservableAttributeSymbol,
+                        notifyPropertyChangedSymbol,
+                        notifyPropertyChangingSymbol
+                    );
                 });
 
             var anotatedClasses = context.SyntaxProvider
                 .CreateSyntaxProvider(Predicate, Transform)
-                .Where(v => v.typeSymbol is not null)
-                .Combine(automaticNotifyPropertyChangedImplAttributeSymbol)
-                .Select((v, ct) => (v.Left.syntaxNode, v.Left.typeSymbol, automaticDisposeImplAttributeSymbol: v.Right))
-                .Where(v => v.automaticDisposeImplAttributeSymbol is not null);
+                .Where(v => v is not null)
+                .Combine(enableNotificationSupportAttributeSymbol)
+                .Select((v, ct) => (propertySymbol: v.Left, usingSymbols: v.Right));
 
             context.RegisterSourceOutput(anotatedClasses, Generate);
         }
@@ -94,13 +206,22 @@ namespace Benutomo
         void PostInitialization(IncrementalGeneratorPostInitializationContext context)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
-            context.AddSource($"{AutomaticNotifyPropertyChangedImplAttributeName}.cs", AutomaticNotifyPropertyChangedImplAttributeSource);
+            context.AddSource($"{EnableNotificationSupportAttributeName}.cs", EnableNotificationSupportAttributeSource);
 
             context.CancellationToken.ThrowIfCancellationRequested();
-            context.AddSource($"{EnableAutomaticNotifyAttributeName}.cs", EnableAutomaticNotifyAttributeSource);
+            context.AddSource($"{ChangingEventAttributeName}.cs", ChangingEventAttributeSource);
 
             context.CancellationToken.ThrowIfCancellationRequested();
-            context.AddSource($"{DisableAutomaticNotifyAttributeName}.cs", DisableAutomaticNotifyAttributeSource);
+            context.AddSource($"{ChangedEventAttributeName}.cs", ChangedEventAttributeSource);
+
+            context.CancellationToken.ThrowIfCancellationRequested();
+            context.AddSource($"{ChangingObservableAttributeName}.cs", ChangingObservableAttributeSource);
+
+            context.CancellationToken.ThrowIfCancellationRequested();
+            context.AddSource($"{ChangedObservableAttributeName}.cs", ChangedObservableAttributeSource);
+
+            context.CancellationToken.ThrowIfCancellationRequested();
+            context.AddSource($"{NotificationAccessibilityName}.cs", NotificationAccessibilitySource);
         }
 
         
@@ -108,67 +229,39 @@ namespace Benutomo
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            return node is ClassDeclarationSyntax
+            return node is PropertyDeclarationSyntax
             {
                 AttributeLists.Count: > 0
             };
         }
 
-        (ClassDeclarationSyntax syntaxNode, INamedTypeSymbol typeSymbol) Transform(GeneratorSyntaxContext context, CancellationToken cancellationToken)
+        IPropertySymbol Transform(GeneratorSyntaxContext context, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var classDeclarationSyntax = (ClassDeclarationSyntax)context.Node;
+            var propertyDeclarationSyntax = (PropertyDeclarationSyntax)context.Node;
 
-            var namedTypeSymbol = context.SemanticModel.GetDeclaredSymbol(classDeclarationSyntax, cancellationToken) as INamedTypeSymbol;
+            var propertySymbol = context.SemanticModel.GetDeclaredSymbol(propertyDeclarationSyntax, cancellationToken) as IPropertySymbol;
 
-            return (classDeclarationSyntax, namedTypeSymbol!);
+            return propertySymbol!;
         }
 
-        void Generate(SourceProductionContext context, (ClassDeclarationSyntax syntaxNode, INamedTypeSymbol typeSymbol, INamedTypeSymbol automaticDisposeImplAttributeSymbol) args)
+        void Generate(SourceProductionContext context, (IPropertySymbol propertySymbol, UsingSymbols usingSymbols) args)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
-
-            if (!args.syntaxNode.Modifiers.Any(modifier => modifier.ValueText == "partial"))
-            {
-                // AnalyzerでSG0001の報告を実装
-                return;
-            }
-
-            if (!IsAssignableToINotifyPropertyChanged(args.typeSymbol))
-            {
-                // AnalyzerでSG0002の報告を実装
-                return;
-            }
-
-            var automaticDisposeAttributeData = args.typeSymbol.GetAttributes().SingleOrDefault(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, args.automaticDisposeImplAttributeSymbol));
-            if (automaticDisposeAttributeData is null)
+            
+            var enableNotificationSupportAttributeData = args.propertySymbol.GetAttributes().SingleOrDefault(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, args.usingSymbols.EnableNotificationSupportAttribute));
+            if (enableNotificationSupportAttributeData is null)
             {
                 return;
             }
 
-            var sourceBuilder = new SourceBuilder(context, args.typeSymbol, automaticDisposeAttributeData);
+            var sourceBuilder = new SourceBuilder(context, args.propertySymbol, args.usingSymbols, enableNotificationSupportAttributeData);
 
             sourceBuilder.Build();
 
             context.AddSource(sourceBuilder.HintName, sourceBuilder.SourceText);
         }
-
-        public void Execute(GeneratorExecutionContext context)
-        {
-            context.CancellationToken.ThrowIfCancellationRequested();
-            if (context.SyntaxContextReceiver is not SyntaxContextReceiver syntaxContextReciever)
-            {
-                return;
-            }
-
-            var automaticDisposeImplAttributeSymbol = context.Compilation.GetTypeByMetadataName(AutomaticNotifyPropertyChangedImplAttributeFullyQualifiedMetadataName);
-
-            foreach (var anotatedClassDeclaration in syntaxContextReciever.AnotatedClassDeclarations)
-            {
-            }
-        }
-
 
 
         private static bool IsXSymbolImpl(ITypeSymbol? typeSymbol, string ns1, string typeName)
@@ -251,70 +344,11 @@ namespace Benutomo
             return false;
         }
 
-        internal static bool IsAutomaticNotifyPropertyChangedImplAttribute(ITypeSymbol? typeSymbol) => IsXSymbolImpl(typeSymbol, AttributeDefinedNameSpace, AutomaticNotifyPropertyChangedImplAttributeName);
 
-        internal static bool IsEnableAutomaticNotifyAttribute(ITypeSymbol? typeSymbol) => IsXSymbolImpl(typeSymbol, AttributeDefinedNameSpace, EnableAutomaticNotifyAttributeName);
-
-        internal static bool IsDisableAutomaticNotifyAttribute(ITypeSymbol? typeSymbol) => IsXSymbolImpl(typeSymbol, AttributeDefinedNameSpace, DisableAutomaticNotifyAttributeName);
-
+        internal static bool IsEnableAutomaticNotifyAttribute(ITypeSymbol? typeSymbol) => IsXSymbolImpl(typeSymbol, AttributeDefinedNameSpace, EnableNotificationSupportAttributeName);
 
         internal static bool IsINotifyPropertyChanged(ITypeSymbol? typeSymbol) => IsXSymbolImpl(typeSymbol, "System", "ComponentModel", "INotifyPropertyChanged");
 
         internal static bool IsAssignableToINotifyPropertyChanged(ITypeSymbol? typeSymbol) => IsAssignableToIXImpl(typeSymbol, IsINotifyPropertyChanged, IsAssignableToINotifyPropertyChanged);
-
-
-        class SyntaxContextReceiver : ISyntaxContextReceiver
-        {
-#pragma warning disable RS1024 // シンボルを正しく比較する
-            /// <summary>
-            /// コンパイル対象全体から作られる型のシンボルと構文木内でその型を定義しているClassDeclarationSyntaxの対応テーブル
-            /// </summary>
-            public Dictionary<ISymbol, List<ClassDeclarationSyntax>> ClassDeclarationTable { get; } = new(SymbolEqualityComparer.Default);
-#pragma warning restore RS1024 // シンボルを正しく比較する
-
-            public List<(ClassDeclarationSyntax syntaxNode, INamedTypeSymbol symbol)> AnotatedClassDeclarations { get; } = new();
-
-
-            public void OnVisitSyntaxNode(GeneratorSyntaxContext context)
-            {
-                if (context.Node is not ClassDeclarationSyntax classDeclarationSyntax)
-                {
-                    return;
-                }
-
-                if (context.SemanticModel.GetDeclaredSymbol(classDeclarationSyntax) is not INamedTypeSymbol namedTypeSymbol)
-                {
-                    return;
-                }
-
-                if (!ClassDeclarationTable.TryGetValue(namedTypeSymbol, out var classDeclarationSyntaxes))
-                {
-                    classDeclarationSyntaxes = new List<ClassDeclarationSyntax>();
-                    ClassDeclarationTable.Add(namedTypeSymbol, classDeclarationSyntaxes);
-                }
-
-                classDeclarationSyntaxes.Add(classDeclarationSyntax);
-
-                bool isAutomaticDisposeImplAnnotationedDeclaration = false;
-
-                foreach (var attributeList in classDeclarationSyntax.AttributeLists)
-                {
-                    foreach (var attribute in attributeList.Attributes)
-                    {
-                        if (IsAutomaticNotifyPropertyChangedImplAttribute(context.SemanticModel.GetTypeInfo(attribute).Type))
-                        {
-                            isAutomaticDisposeImplAnnotationedDeclaration = true;
-                            goto LOOP_END_isAutomaticDisposeImplAnnotationedDeclaration;
-                        }
-                    }
-                }
-            LOOP_END_isAutomaticDisposeImplAnnotationedDeclaration:
-
-                if (isAutomaticDisposeImplAnnotationedDeclaration)
-                {
-                    AnotatedClassDeclarations.Add((classDeclarationSyntax, namedTypeSymbol));
-                }
-            }
-        }
     }
 }
