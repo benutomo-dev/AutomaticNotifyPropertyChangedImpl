@@ -20,6 +20,8 @@ namespace SourceGeneratorDebug
         [EnableNotificationSupport(EventArgsOnly = false)]
         [ChangedEvent(Public)]
         [ChangingEvent(Public)]
+        [ChangedObservable(Public)]
+        [ChangingObservable(Public)]
         public bool? IsEnabled
         {
             get => _IsEnabled();

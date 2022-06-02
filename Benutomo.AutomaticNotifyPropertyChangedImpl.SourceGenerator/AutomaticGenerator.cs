@@ -9,6 +9,56 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
     {
         internal const string AttributeDefinedNameSpace = "Benutomo";
 
+        internal const string EventToObservableName = "EventToObservable";
+        internal const string EventToObservableFullyQualifiedMetadataName = "Benutomo.Internal.EventToObservable";
+        private const string EventToObservableSource = @"
+using System;
+
+#pragma warning disable CS0436
+#nullable enable
+
+namespace Benutomo.Internal
+{
+    internal class EventToObservable : IObservable<object?>
+    {
+        Action<EventHandler> _addHandler;
+        Action<EventHandler> _removeHandler;
+
+        public EventToObservable(Action<EventHandler> addHandler, Action<EventHandler> removeHandler)
+        {
+            _addHandler = addHandler ?? throw new ArgumentNullException(nameof(addHandler));
+            _removeHandler = removeHandler ?? throw new ArgumentNullException(nameof(removeHandler));
+        }
+
+        public IDisposable Subscribe(IObserver<object?> observer) => new Proxy(_addHandler, _removeHandler, observer);
+
+        private class Proxy : IDisposable
+        {
+            Action<EventHandler>? _removeHandler;
+            IObserver<object?>? _observer;
+
+            public Proxy(Action<EventHandler> addHandler, Action<EventHandler> removeHandler, IObserver<object?> observer)
+            {
+                addHandler(EventHandler);
+                _removeHandler = removeHandler;
+                _observer = observer;
+            }
+
+            public void Dispose()
+            {
+                var removeHandler = Interlocked.Exchange(ref _removeHandler, null);
+                removeHandler?.Invoke(EventHandler);
+
+                var observer = Interlocked.Exchange(ref _observer, null);
+                observer?.OnCompleted();
+            }
+
+            void EventHandler(object? source, EventArgs args) => _observer?.OnNext(source);
+        }
+    }
+}
+";
+
         internal const string EnableNotificationSupportAttributeName = "EnableNotificationSupportAttribute";
         internal const string EnableNotificationSupportAttributeFullyQualifiedMetadataName = "Benutomo.EnableNotificationSupportAttribute";
         private const string EnableNotificationSupportAttributeSource = @"
@@ -205,6 +255,9 @@ namespace Benutomo
 
         void PostInitialization(IncrementalGeneratorPostInitializationContext context)
         {
+            context.CancellationToken.ThrowIfCancellationRequested();
+            context.AddSource($"{EventToObservableName}.cs", EventToObservableSource);
+
             context.CancellationToken.ThrowIfCancellationRequested();
             context.AddSource($"{EnableNotificationSupportAttributeName}.cs", EnableNotificationSupportAttributeSource);
 

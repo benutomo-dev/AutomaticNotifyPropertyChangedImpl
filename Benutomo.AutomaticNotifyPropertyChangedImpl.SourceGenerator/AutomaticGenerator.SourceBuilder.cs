@@ -49,6 +49,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
             enum DeclareState
             {
                 None,
+                Private,
                 Public,
                 Protected,
                 Internal,
@@ -83,6 +84,18 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                     {
                         _changingObservableDeclareState = GetDeclareState(attributeData);
                     }
+                }
+
+                if (_changedObservableDeclareState != DeclareState.None && _changedEventDeclareState == DeclareState.None)
+                {
+                    // Observableはイベントを変換する形で実装するのでprivateでイベントを用意する。
+                    _changedEventDeclareState = DeclareState.Private;
+                }
+
+                if (_changingObservableDeclareState != DeclareState.None && _changingEventDeclareState == DeclareState.None)
+                {
+                    // Observableはイベントを変換する形で実装するのでprivateでイベントを用意する。
+                    _changingEventDeclareState = DeclareState.Private;
                 }
 
                 static DeclareState GetDeclareState(AttributeData attributeData)
@@ -335,6 +348,31 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                     _sourceBuilder.AppendLine("Changed;");
                 }
 
+                if (_changingObservableDeclareState != DeclareState.None)
+                {
+                    PutIndentSpace();
+                    _sourceBuilder.Append(ToAccessibilityToken(_changingObservableDeclareState));
+                    _sourceBuilder.Append(" global::System.IObservable<object?> ");
+                    _sourceBuilder.Append(property.Name);
+                    _sourceBuilder.Append("ChangingAsObservable() =>  new global::Benutomo.Internal.EventToObservable(h => ");
+                    _sourceBuilder.Append(property.Name);
+                    _sourceBuilder.Append("Changing += h, h => ");
+                    _sourceBuilder.Append(property.Name);
+                    _sourceBuilder.AppendLine("Changing -= h);");
+                }
+
+                if (_changedObservableDeclareState != DeclareState.None)
+                {
+                    PutIndentSpace();
+                    _sourceBuilder.Append(ToAccessibilityToken(_changedObservableDeclareState));
+                    _sourceBuilder.Append(" global::System.IObservable<object?> ");
+                    _sourceBuilder.Append(property.Name);
+                    _sourceBuilder.Append("ChangedAsObservable() =>  new global::Benutomo.Internal.EventToObservable(h => ");
+                    _sourceBuilder.Append(property.Name);
+                    _sourceBuilder.Append("Changed += h, h => ");
+                    _sourceBuilder.Append(property.Name);
+                    _sourceBuilder.AppendLine("Changed -= h);");
+                }
 
                 PutIndentSpace();
                 _sourceBuilder.Append("private ");
@@ -490,6 +528,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                         case DeclareState.Protected: return "protected";
                         case DeclareState.Internal: return "internal";
                         case DeclareState.InternalProrected: return "internal protected";
+                        case DeclareState.Private: return "private";
                         default: throw new InvalidOperationException();
                     }
                 }
