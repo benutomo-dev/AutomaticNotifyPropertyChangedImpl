@@ -186,6 +186,7 @@ namespace Benutomo
         internal const int NotificationAccessibilityProtected = 1;
         internal const int NotificationAccessibilityInternal = 2;
         internal const int NotificationAccessibilityInternalProtected = 3;
+        internal const int NotificationAccessibilityPrivate = 4;
         private const string NotificationAccessibilitySource = @"
 using System;
 
@@ -203,6 +204,7 @@ namespace Benutomo
         Protected,
         Internal,
         InternalProtected,
+        Private,
     }
 }
 ";

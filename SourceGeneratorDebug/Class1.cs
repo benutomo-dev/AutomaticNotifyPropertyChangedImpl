@@ -21,7 +21,7 @@ namespace SourceGeneratorDebug
         [ChangedEvent(Public)]
         [ChangingEvent(Public)]
         [ChangedObservable(Public)]
-        [ChangingObservable(Public)]
+        [ChangingObservable(Private)]
         public bool? IsEnabled
         {
             get => _IsEnabled();

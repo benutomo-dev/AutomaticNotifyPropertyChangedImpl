@@ -110,6 +110,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                         NotificationAccessibilityInternal => DeclareState.Internal,
                         NotificationAccessibilityProtected => DeclareState.Protected,
                         NotificationAccessibilityInternalProtected => DeclareState.InternalProrected,
+                        NotificationAccessibilityPrivate => DeclareState.Private,
                         _ => DeclareState.None,
                     };
                 }
