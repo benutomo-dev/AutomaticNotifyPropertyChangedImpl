@@ -215,7 +215,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                     {
                         // なくてもいいが生成されたコードだけを見ても実装対象となっているインターフェイスが分かるようにしておく
 
-                        _sourceBuilder.Append(" // This is implementation class for INotifyPropertyChanged by AutomaticNotifyPropertyChangedImpl.");
+                        _sourceBuilder.Append(" // This is implementation class by AutomaticNotifyPropertyChangedImpl.");
                     }
                     _sourceBuilder.AppendLine("");
 
