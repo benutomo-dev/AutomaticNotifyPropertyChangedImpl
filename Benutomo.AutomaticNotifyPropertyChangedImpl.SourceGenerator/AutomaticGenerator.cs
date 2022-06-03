@@ -7,6 +7,32 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
     [Generator]
     public partial class AutomaticGenerator : IIncrementalGenerator
     {
+#if DEBUG
+        static StreamWriter _streamWriter;
+        static AutomaticGenerator()
+        {
+            Directory.CreateDirectory(@"c:\var\log\AutomaticNotifyPropertyChangedImpl");
+            var proc = Process.GetCurrentProcess();
+            _streamWriter = new StreamWriter($@"c:\var\log\AutomaticNotifyPropertyChangedImpl\{DateTime.Now:yyyyMMddHHmmss}_{proc.Id}.txt");
+            _streamWriter.WriteLine(proc);
+        }
+
+        [Conditional("DEBUG")]
+        static void WriteLogLine(string line)
+        {
+            lock (_streamWriter)
+            {
+                _streamWriter.WriteLine(line);
+                _streamWriter.Flush();
+            }
+        }
+#else
+        [Conditional("DEBUG")]
+        static void WriteLogLine(string line)
+        {
+        }
+#endif
+
         internal const string AttributeDefinedNameSpace = "Benutomo";
 
         internal const string EventToObservableName = "EventToObservable";
@@ -217,46 +243,103 @@ namespace Benutomo
             INamedTypeSymbol ChantingObservable,
             INamedTypeSymbol NotifyPropertyChanged,
             INamedTypeSymbol NotifyPropertyChanging
-            );
+            )
+        {
+            public bool Equals(UsingSymbols other)
+            {
+                var result =
+                    SymbolEqualityComparer.IncludeNullability.Equals(EnableNotificationSupportAttribute, other.EnableNotificationSupportAttribute) &&
+                    SymbolEqualityComparer.IncludeNullability.Equals(ChangedEvent, other.ChangedEvent) &&
+                    SymbolEqualityComparer.IncludeNullability.Equals(ChangingEvent, other.ChangingEvent) &&
+                    SymbolEqualityComparer.IncludeNullability.Equals(ChangedObservable, other.ChangedObservable) &&
+                    SymbolEqualityComparer.IncludeNullability.Equals(ChantingObservable, other.ChantingObservable) &&
+                    SymbolEqualityComparer.IncludeNullability.Equals(NotifyPropertyChanged, other.NotifyPropertyChanged) &&
+                    SymbolEqualityComparer.IncludeNullability.Equals(NotifyPropertyChanging, other.NotifyPropertyChanging);
+
+                WriteLogLine($"UsingSymbols.Equals() => {result}");
+
+                return result;
+            }
+
+            public override int GetHashCode()
+            {
+                return
+                    SymbolEqualityComparer.IncludeNullability.GetHashCode(EnableNotificationSupportAttribute) ^
+                    SymbolEqualityComparer.IncludeNullability.GetHashCode(ChangedEvent) ^
+                    SymbolEqualityComparer.IncludeNullability.GetHashCode(ChangingEvent) ^
+                    SymbolEqualityComparer.IncludeNullability.GetHashCode(ChangedObservable) ^
+                    SymbolEqualityComparer.IncludeNullability.GetHashCode(ChantingObservable) ^
+                    SymbolEqualityComparer.IncludeNullability.GetHashCode(NotifyPropertyChanged) ^
+                    SymbolEqualityComparer.IncludeNullability.GetHashCode(NotifyPropertyChanging);
+            }
+        }
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
+            WriteLogLine("Begin Initialize");
+
             context.RegisterPostInitializationOutput(PostInitialization);
 
             var enableNotificationSupportAttributeSymbol = context.CompilationProvider
                 .Select((compilation, cancellationToken) =>
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var enableNotificationSupportAttributeSymbol = compilation.GetTypeByMetadataName(EnableNotificationSupportAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
-                    var changedEventAttributeSymbol = compilation.GetTypeByMetadataName(ChangedEventAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
-                    var changingEventAttributeSymbol = compilation.GetTypeByMetadataName(ChangingEventAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
-                    var changedObservableAttributeSymbol = compilation.GetTypeByMetadataName(ChangedObservableAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
-                    var changingObservableAttributeSymbol = compilation.GetTypeByMetadataName(ChangingObservableAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
-                    var notifyPropertyChangedSymbol = compilation.GetTypeByMetadataName("System.ComponentModel.INotifyPropertyChanged") ?? throw new InvalidOperationException();
-                    var notifyPropertyChangingSymbol = compilation.GetTypeByMetadataName("System.ComponentModel.INotifyPropertyChanging") ?? throw new InvalidOperationException();
+                    WriteLogLine("Begin GetTypeByMetadataName");
+                    
+                    try
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var enableNotificationSupportAttributeSymbol = compilation.GetTypeByMetadataName(EnableNotificationSupportAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                        var changedEventAttributeSymbol = compilation.GetTypeByMetadataName(ChangedEventAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                        var changingEventAttributeSymbol = compilation.GetTypeByMetadataName(ChangingEventAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                        var changedObservableAttributeSymbol = compilation.GetTypeByMetadataName(ChangedObservableAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                        var changingObservableAttributeSymbol = compilation.GetTypeByMetadataName(ChangingObservableAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                        var notifyPropertyChangedSymbol = compilation.GetTypeByMetadataName("System.ComponentModel.INotifyPropertyChanged") ?? throw new InvalidOperationException();
+                        var notifyPropertyChangingSymbol = compilation.GetTypeByMetadataName("System.ComponentModel.INotifyPropertyChanging") ?? throw new InvalidOperationException();
 
-                    return new UsingSymbols(
-                        enableNotificationSupportAttributeSymbol,
-                        changedEventAttributeSymbol,
-                        changingEventAttributeSymbol,
-                        changedObservableAttributeSymbol,
-                        changingObservableAttributeSymbol,
-                        notifyPropertyChangedSymbol,
-                        notifyPropertyChangingSymbol
-                    );
+                        return new UsingSymbols(
+                            enableNotificationSupportAttributeSymbol,
+                            changedEventAttributeSymbol,
+                            changingEventAttributeSymbol,
+                            changedObservableAttributeSymbol,
+                            changingObservableAttributeSymbol,
+                            notifyPropertyChangedSymbol,
+                            notifyPropertyChangingSymbol
+                        );
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        WriteLogLine("Canceled GetTypeByMetadataName");
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteLogLine("Exception GetTypeByMetadataName");
+                        WriteLogLine(ex.ToString());
+                        throw;
+                    }
                 });
+
+            // Where句を使用しない。
+            // https://github.com/dotnet/roslyn/issues/57991
+            // 今は、Where句を使用するとSource GeneratorがVSでインクリメンタルに実行されたときに
+            // 対象のコードの状態や編集内容などによって突然内部状態が壊れて機能しなくなる問題がおきる。
 
             var anotatedClasses = context.SyntaxProvider
                 .CreateSyntaxProvider(Predicate, Transform)
-                .Where(v => v is not null)
+                //.Where(v => v is not null)
                 .Combine(enableNotificationSupportAttributeSymbol)
-                .Select((v, ct) => (propertySymbol: v.Left, usingSymbols: v.Right));
+                .Select(PostTransform)
+                ;//.Where(v => v is not null);
 
             context.RegisterSourceOutput(anotatedClasses, Generate);
+
+            WriteLogLine("End Initialize");
         }
 
         void PostInitialization(IncrementalGeneratorPostInitializationContext context)
         {
+            WriteLogLine("Begin PostInitialization");
+
             context.CancellationToken.ThrowIfCancellationRequested();
             context.AddSource($"{EventToObservableName}.cs", EventToObservableSource);
 
@@ -277,12 +360,14 @@ namespace Benutomo
 
             context.CancellationToken.ThrowIfCancellationRequested();
             context.AddSource($"{NotificationAccessibilityName}.cs", NotificationAccessibilitySource);
+
+            WriteLogLine("End PostInitialization");
         }
 
         
         bool Predicate(SyntaxNode node, CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            //WriteLogLine("Predicate");
 
             return node is PropertyDeclarationSyntax
             {
@@ -290,120 +375,89 @@ namespace Benutomo
             };
         }
 
-        IPropertySymbol Transform(GeneratorSyntaxContext context, CancellationToken cancellationToken)
+        IPropertySymbol? Transform(GeneratorSyntaxContext context, CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var propertyDeclarationSyntax = (PropertyDeclarationSyntax)context.Node;
-
-            var propertySymbol = context.SemanticModel.GetDeclaredSymbol(propertyDeclarationSyntax, cancellationToken) as IPropertySymbol;
-
-            return propertySymbol!;
-        }
-
-        void Generate(SourceProductionContext context, (IPropertySymbol propertySymbol, UsingSymbols usingSymbols) args)
-        {
-            context.CancellationToken.ThrowIfCancellationRequested();
-            
-            var enableNotificationSupportAttributeData = args.propertySymbol.GetAttributes().SingleOrDefault(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, args.usingSymbols.EnableNotificationSupportAttribute));
-            if (enableNotificationSupportAttributeData is null)
+            WriteLogLine("Begin Transform");
+            try
             {
-                return;
+                var propertyDeclarationSyntax = (PropertyDeclarationSyntax)context.Node;
+
+                var propertySymbol = context.SemanticModel.GetDeclaredSymbol(propertyDeclarationSyntax, cancellationToken) as IPropertySymbol;
+
+                WriteLogLine($"End Transform ({propertySymbol?.ContainingType?.Name}.{propertySymbol?.Name})");
+
+                return propertySymbol;
             }
-
-            var sourceBuilder = new SourceBuilder(context, args.propertySymbol, args.usingSymbols, enableNotificationSupportAttributeData);
-
-            sourceBuilder.Build();
-
-            context.AddSource(sourceBuilder.HintName, sourceBuilder.SourceText);
-        }
-
-
-        private static bool IsXSymbolImpl(ITypeSymbol? typeSymbol, string ns1, string typeName)
-        {
-            Debug.Assert(!ns1.Contains("."));
-            Debug.Assert(!typeName.Contains("."));
-
-            if (typeSymbol is null) return false;
-
-            if (typeSymbol.Name != typeName) return false;
-
-            var containingNamespaceSymbol = typeSymbol.ContainingNamespace;
-
-            if (containingNamespaceSymbol is null) return false;
-
-            if (containingNamespaceSymbol.Name != ns1) return false;
-
-            if (containingNamespaceSymbol.ContainingNamespace is null) return false;
-
-            if (!containingNamespaceSymbol.ContainingNamespace.IsGlobalNamespace) return false;
-
-            return true;
-        }
-        private static bool IsXSymbolImpl(ITypeSymbol? typeSymbol, string ns1, string ns2, string typeName)
-        {
-            Debug.Assert(!ns1.Contains("."));
-            Debug.Assert(!typeName.Contains("."));
-
-            if (typeSymbol is null) return false;
-
-            if (typeSymbol.Name != typeName) return false;
-
-            var containingNamespaceSymbol = typeSymbol.ContainingNamespace;
-
-            if (containingNamespaceSymbol is null) return false;
-
-            if (containingNamespaceSymbol.Name != ns2) return false;
-
-            if (containingNamespaceSymbol.ContainingNamespace is null) return false;
-
-            if (containingNamespaceSymbol.ContainingNamespace.Name != ns1) return false;
-
-            if (containingNamespaceSymbol.ContainingNamespace.ContainingNamespace is null) return false;
-
-            if (!containingNamespaceSymbol.ContainingNamespace.ContainingNamespace.IsGlobalNamespace) return false;
-
-            return true;
-        }
-
-
-        private static bool IsAssignableToIXImpl(ITypeSymbol? typeSymbol, Func<ITypeSymbol, bool> isXTypeFunc, Func<ITypeSymbol, bool> isAssignableToXFunc)
-        {
-            if (typeSymbol is null) return false;
-
-            if (isXTypeFunc(typeSymbol)) return true;
-
-            if (typeSymbol.AllInterfaces.Any((Func<INamedTypeSymbol, bool>)isXTypeFunc)) return true;
-
-            // ジェネリック型の型パラメータの場合は型パラメータの制約を再帰的に確認
-            if (typeSymbol is ITypeParameterSymbol typeParameterSymbol && typeParameterSymbol.ConstraintTypes.Any(isAssignableToXFunc))
+            catch (OperationCanceledException)
             {
-                return true;
+                WriteLogLine($"Canceled Transform");
+                throw;
             }
-
-            return false;
         }
 
-        private static bool IsXAttributedMemberImpl(ISymbol? symbol, Func<INamedTypeSymbol, bool> isXAttributeSymbol)
+        SourceBuildInputs? PostTransform((IPropertySymbol? Left, UsingSymbols Right) v, CancellationToken ct)
         {
-            if (symbol is null) return false;
+            var propertySymbol = v.Left;
+            var usingSymbols = v.Right;
 
-            foreach (var attributeData in symbol.GetAttributes())
+            if (propertySymbol is null) return null;
+
+            WriteLogLine($"Begin PostTransform ({propertySymbol.ContainingType?.Name}.{propertySymbol.Name})");
+
+            try
             {
-                if (attributeData.AttributeClass is not null && isXAttributeSymbol(attributeData.AttributeClass))
+                var enableNotificationSupportAttributeData = propertySymbol.GetAttributes().FirstOrDefault(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, usingSymbols.EnableNotificationSupportAttribute));
+                if (enableNotificationSupportAttributeData is null)
                 {
-                    return true;
+                    return null;
                 }
-            }
 
-            return false;
+                var result = new SourceBuildInputs(propertySymbol, usingSymbols, enableNotificationSupportAttributeData);
+
+                WriteLogLine($"End PostTransform ({propertySymbol.ContainingType?.Name}.{propertySymbol.Name})");
+
+                return result;
+            }
+            catch (OperationCanceledException)
+            {
+                WriteLogLine($"Canceled PostTransform ({propertySymbol.ContainingType?.Name}.{propertySymbol.Name})");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                WriteLogLine($"Exception PostTransform ({propertySymbol.ContainingType?.Name}.{propertySymbol.Name})");
+                WriteLogLine(ex.ToString());
+                throw;
+            }
         }
 
+        void Generate(SourceProductionContext context, SourceBuildInputs? sourceBuildInputs)
+        {
+            if (sourceBuildInputs is null) return;
 
-        internal static bool IsEnableAutomaticNotifyAttribute(ITypeSymbol? typeSymbol) => IsXSymbolImpl(typeSymbol, AttributeDefinedNameSpace, EnableNotificationSupportAttributeName);
+            WriteLogLine($"Begin Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.PropertyName})");
 
-        internal static bool IsINotifyPropertyChanged(ITypeSymbol? typeSymbol) => IsXSymbolImpl(typeSymbol, "System", "ComponentModel", "INotifyPropertyChanged");
+            try
+            {
+                var sourceBuilder = new SourceBuilder(context, sourceBuildInputs);
 
-        internal static bool IsAssignableToINotifyPropertyChanged(ITypeSymbol? typeSymbol) => IsAssignableToIXImpl(typeSymbol, IsINotifyPropertyChanged, IsAssignableToINotifyPropertyChanged);
+                sourceBuilder.Build();
+
+                context.AddSource(sourceBuilder.HintName, sourceBuilder.SourceText);
+
+                WriteLogLine($"End Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.PropertyName}) => {sourceBuilder.HintName}");
+            }
+            catch (OperationCanceledException)
+            {
+                WriteLogLine($"Canceled Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.PropertyName})");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                WriteLogLine($"Exception in Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.PropertyName})");
+                WriteLogLine(ex.ToString());
+                throw;
+            }
+        }
     }
 }
