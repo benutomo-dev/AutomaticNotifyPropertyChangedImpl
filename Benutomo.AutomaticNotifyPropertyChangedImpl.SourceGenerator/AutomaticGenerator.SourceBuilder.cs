@@ -598,24 +598,30 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                     _sourceBuilder.Append(ToAccessibilityToken(_sourceBuildInputs.ChangingObservableAccesibility));
                     _sourceBuilder.Append(" global::System.IObservable<object?> ");
                     _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
-                    _sourceBuilder.Append("ChangingAsObservable() =>  new global::Benutomo.Internal.EventToObservable(h => ");
+                    _sourceBuilder.Append("ChangingAsObservable() =>  new global::Benutomo.Internal.EventToObservable<object?>(h => ");
                     _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
                     _sourceBuilder.Append("Changing += h, h => ");
                     _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
-                    _sourceBuilder.AppendLine("Changing -= h);");
+                    _sourceBuilder.AppendLine("Changing -= h, () => this, pushValueAtSubscribed: false);");
                 }
 
                 if (_sourceBuildInputs.ChangedObservableAccesibility != GenerateMemberAccessibility.None)
                 {
                     PutIndentSpace();
                     _sourceBuilder.Append(ToAccessibilityToken(_sourceBuildInputs.ChangedObservableAccesibility));
-                    _sourceBuilder.Append(" global::System.IObservable<object?> ");
+                    _sourceBuilder.Append(" global::System.IObservable<");
+                    _sourceBuilder.Append(_sourceBuildInputs.PropertyType);
+                    _sourceBuilder.Append("> ");
                     _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
-                    _sourceBuilder.Append("ChangedAsObservable() =>  new global::Benutomo.Internal.EventToObservable(h => ");
+                    _sourceBuilder.Append("ChangedAsObservable(bool pushValueAtSubscribed = false) =>  new global::Benutomo.Internal.EventToObservable<");
+                    _sourceBuilder.Append(_sourceBuildInputs.PropertyType);
+                    _sourceBuilder.Append(">(h => ");
                     _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
                     _sourceBuilder.Append("Changed += h, h => ");
                     _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
-                    _sourceBuilder.AppendLine("Changed -= h);");
+                    _sourceBuilder.Append("Changed -= h, () => ");
+                    _sourceBuilder.Append(fieldName);
+                    _sourceBuilder.AppendLine(", pushValueAtSubscribed);");
                 }
 
                 PutIndentSpace();
