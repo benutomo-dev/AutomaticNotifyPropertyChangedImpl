@@ -208,11 +208,13 @@ namespace Benutomo
 
         internal const string NotificationAccessibilityName = "NotificationAccessibility";
         internal const string NotificationAccessibilityFullyQualifiedMetadataName = "Benutomo.NotificationAccessibility";
-        internal const int NotificationAccessibilityPublic = 0;
-        internal const int NotificationAccessibilityProtected = 1;
-        internal const int NotificationAccessibilityInternal = 2;
-        internal const int NotificationAccessibilityInternalProtected = 3;
-        internal const int NotificationAccessibilityPrivate = 4;
+        internal const int NotificationAccessibilityDefault = 0;
+        internal const int NotificationAccessibilityPublic = 1;
+        internal const int NotificationAccessibilityProtected = 2;
+        internal const int NotificationAccessibilityInternal = 3;
+        internal const int NotificationAccessibilityProtectedInternal = 4;
+        internal const int NotificationAccessibilityPrivateProtected = 5;
+        internal const int NotificationAccessibilityPrivate = 6;
         private const string NotificationAccessibilitySource = @"
 using System;
 
@@ -226,10 +228,12 @@ namespace Benutomo
     /// </summary>
     internal enum NotificationAccessibility : int
     {
+        Default,
         Public,
         Protected,
         Internal,
-        InternalProtected,
+        ProtectedInternal,
+        PrivateProtected,
         Private,
     }
 }

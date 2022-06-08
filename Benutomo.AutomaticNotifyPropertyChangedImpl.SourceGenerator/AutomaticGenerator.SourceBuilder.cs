@@ -86,14 +86,15 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
             }
         }
 
-        enum DeclareState
+        enum GenerateMemberAccessibility
         {
             None,
             Private,
             Public,
             Protected,
             Internal,
-            InternalProrected,
+            ProrectedInternal,
+            PrivateProrected,
         }
 
         class SourceBuildInputs : IEquatable<SourceBuildInputs?>
@@ -116,13 +117,13 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
             public bool EnabledNotifyPropertyChanged;
 
-            public DeclareState ChangedEventDeclareState;
+            public GenerateMemberAccessibility ChangedEventAccessibility;
 
-            public DeclareState ChangingEventDeclareState;
+            public GenerateMemberAccessibility ChangingEventAccessibility;
 
-            public DeclareState ChangedObservableDeclareState;
+            public GenerateMemberAccessibility ChangedObservableAccesibility;
 
-            public DeclareState ChangingObservableDeclareState;
+            public GenerateMemberAccessibility ChangingObservableAccesibility;
 
             public SourceBuildInputs(IPropertySymbol propertySymbol, UsingSymbols usingSymbols, AttributeData enableNotificationSupportAttributeData)
             {
@@ -147,54 +148,73 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
                 foreach (var attributeData in propertySymbol.GetAttributes())
                 {
+                    GenerateMemberAccessibility defaultAccessibility = (propertySymbol.GetMethod?.DeclaredAccessibility, propertySymbol.DeclaredAccessibility) switch
+                    {
+                        (Accessibility.Public, _) => GenerateMemberAccessibility.Public,
+                        (Accessibility.Protected, _) => GenerateMemberAccessibility.Protected,
+                        (Accessibility.ProtectedOrInternal, _) => GenerateMemberAccessibility.ProrectedInternal,
+                        (Accessibility.ProtectedAndInternal, _) => GenerateMemberAccessibility.PrivateProrected,
+                        (Accessibility.Internal, _) => GenerateMemberAccessibility.Internal,
+                        (Accessibility.Private, _) => GenerateMemberAccessibility.Private,
+                        (Accessibility.NotApplicable, Accessibility.Public) => GenerateMemberAccessibility.Public,
+                        (Accessibility.NotApplicable, Accessibility.Protected) => GenerateMemberAccessibility.Protected,
+                        (Accessibility.NotApplicable, Accessibility.ProtectedOrInternal) => GenerateMemberAccessibility.ProrectedInternal,
+                        (Accessibility.NotApplicable, Accessibility.ProtectedAndInternal) => GenerateMemberAccessibility.PrivateProrected,
+                        (Accessibility.NotApplicable, Accessibility.Internal) => GenerateMemberAccessibility.Internal,
+                        (Accessibility.NotApplicable, Accessibility.Private) => GenerateMemberAccessibility.Private,
+                        _ => GenerateMemberAccessibility.Private,
+                    };
+
                     if (SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass, usingSymbols.ChangedEvent))
                     {
-                        ChangedEventDeclareState = GetDeclareState(attributeData);
+                        ChangedEventAccessibility = ResolveGenerateMemberAccessibility(attributeData, defaultAccessibility);
                     }
                     else if (SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass, usingSymbols.ChangingEvent))
                     {
-                        ChangingEventDeclareState = GetDeclareState(attributeData);
+                        ChangingEventAccessibility = ResolveGenerateMemberAccessibility(attributeData, defaultAccessibility);
                     }
                     else if (SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass, usingSymbols.ChangedObservable))
                     {
-                        ChangedObservableDeclareState = GetDeclareState(attributeData);
+                        ChangedObservableAccesibility = ResolveGenerateMemberAccessibility(attributeData, defaultAccessibility);
                     }
                     else if (SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass, usingSymbols.ChantingObservable))
                     {
-                        ChangingObservableDeclareState = GetDeclareState(attributeData);
+                        ChangingObservableAccesibility = ResolveGenerateMemberAccessibility(attributeData, defaultAccessibility);
                     }
                 }
 
-                if (ChangedObservableDeclareState != DeclareState.None && ChangedEventDeclareState == DeclareState.None)
+                if (ChangedObservableAccesibility != GenerateMemberAccessibility.None && ChangedEventAccessibility == GenerateMemberAccessibility.None)
                 {
                     // Observableはイベントを変換する形で実装するのでprivateでイベントを用意する。
-                    ChangedEventDeclareState = DeclareState.Private;
+                    ChangedEventAccessibility = GenerateMemberAccessibility.Private;
                 }
 
-                if (ChangingObservableDeclareState != DeclareState.None && ChangingEventDeclareState == DeclareState.None)
+                if (ChangingObservableAccesibility != GenerateMemberAccessibility.None && ChangingEventAccessibility == GenerateMemberAccessibility.None)
                 {
                     // Observableはイベントを変換する形で実装するのでprivateでイベントを用意する。
-                    ChangingEventDeclareState = DeclareState.Private;
+                    ChangingEventAccessibility = GenerateMemberAccessibility.Private;
                 }
 
                 return;
 
 
 
-                static DeclareState GetDeclareState(AttributeData attributeData)
+                static GenerateMemberAccessibility ResolveGenerateMemberAccessibility(AttributeData attributeData, GenerateMemberAccessibility defaultAccessibility)
                 {
-                    if (attributeData.ConstructorArguments.Length == 0) return DeclareState.Public;
+                    if (attributeData.ConstructorArguments.Length == 0) return defaultAccessibility;
 
                     if (attributeData.ConstructorArguments.Length > 1) throw new InvalidOperationException();
 
                     return attributeData.ConstructorArguments[0].Value switch
                     {
-                        NotificationAccessibilityPublic => DeclareState.Public,
-                        NotificationAccessibilityInternal => DeclareState.Internal,
-                        NotificationAccessibilityProtected => DeclareState.Protected,
-                        NotificationAccessibilityInternalProtected => DeclareState.InternalProrected,
-                        NotificationAccessibilityPrivate => DeclareState.Private,
-                        _ => DeclareState.None,
+                        NotificationAccessibilityDefault => defaultAccessibility,
+                        NotificationAccessibilityPublic => GenerateMemberAccessibility.Public,
+                        NotificationAccessibilityInternal => GenerateMemberAccessibility.Internal,
+                        NotificationAccessibilityProtected => GenerateMemberAccessibility.Protected,
+                        NotificationAccessibilityProtectedInternal => GenerateMemberAccessibility.ProrectedInternal,
+                        NotificationAccessibilityPrivateProtected => GenerateMemberAccessibility.PrivateProrected,
+                        NotificationAccessibilityPrivate => GenerateMemberAccessibility.Private,
+                        _ => GenerateMemberAccessibility.None,
                     };
                 }
 
@@ -224,6 +244,8 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                         {
                             builder.Add(namedTypeSymbol.TypeArguments[i].Name);
                         }
+
+                        genericTypeArgs = builder.MoveToImmutable();
                     }
 
                     return new TypeDefinitionInfo(container, typeSymbol.Name, typeSymbol.IsValueType, typeSymbol.NullableAnnotation == NullableAnnotation.Annotated, genericTypeArgs);
@@ -294,10 +316,10 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                        IsEventArgsOnly == other.IsEventArgsOnly &&
                        EnabledNotifyPropertyChanging == other.EnabledNotifyPropertyChanging &&
                        EnabledNotifyPropertyChanged == other.EnabledNotifyPropertyChanged &&
-                       ChangedEventDeclareState == other.ChangedEventDeclareState &&
-                       ChangingEventDeclareState == other.ChangingEventDeclareState &&
-                       ChangedObservableDeclareState == other.ChangedObservableDeclareState &&
-                       ChangingObservableDeclareState == other.ChangingObservableDeclareState;
+                       ChangedEventAccessibility == other.ChangedEventAccessibility &&
+                       ChangingEventAccessibility == other.ChangingEventAccessibility &&
+                       ChangedObservableAccesibility == other.ChangedObservableAccesibility &&
+                       ChangingObservableAccesibility == other.ChangingObservableAccesibility;
 
                 WriteLogLine($"SourceBuildInputs.Equals({ContainingTypeInfo.Name}.{PropertyName}) => {result}");
 
@@ -315,10 +337,10 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                 hashCode = hashCode * -1521134295 + IsEventArgsOnly.GetHashCode();
                 hashCode = hashCode * -1521134295 + EnabledNotifyPropertyChanging.GetHashCode();
                 hashCode = hashCode * -1521134295 + EnabledNotifyPropertyChanged.GetHashCode();
-                hashCode = hashCode * -1521134295 + ChangedEventDeclareState.GetHashCode();
-                hashCode = hashCode * -1521134295 + ChangingEventDeclareState.GetHashCode();
-                hashCode = hashCode * -1521134295 + ChangedObservableDeclareState.GetHashCode();
-                hashCode = hashCode * -1521134295 + ChangingObservableDeclareState.GetHashCode();
+                hashCode = hashCode * -1521134295 + ChangedEventAccessibility.GetHashCode();
+                hashCode = hashCode * -1521134295 + ChangingEventAccessibility.GetHashCode();
+                hashCode = hashCode * -1521134295 + ChangedObservableAccesibility.GetHashCode();
+                hashCode = hashCode * -1521134295 + ChangingObservableAccesibility.GetHashCode();
                 return hashCode;
             }
         }
@@ -430,7 +452,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
                 void WriteContainingTypeStart(TypeDefinitionInfo namedTypeSymbol, bool isDesingationType)
                 {
-                    if (namedTypeSymbol.Container is NameSpaceInfo nameSpace)
+                    if (namedTypeSymbol.Container is NameSpaceInfo nameSpace && !string.IsNullOrWhiteSpace(nameSpace.Name))
                     {
                         WriteContainingNameSpaceStart(nameSpace);
                     }
@@ -448,7 +470,6 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
                     if (namedTypeSymbol.GenericTypeArgs.Length > 0)
                     {
-
                         var hintingTypeNameBuilder = new StringBuilder();
 
                         hintingTypeNameBuilder.Append(namedTypeSymbol.Name);
@@ -498,7 +519,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                     _context.CancellationToken.ThrowIfCancellationRequested();
 
 
-                    if (namedTypeSymbol.Container is NameSpaceInfo nameSpace)
+                    if (namedTypeSymbol.Container is NameSpaceInfo nameSpace && !string.IsNullOrWhiteSpace(nameSpace.Name))
                     {
                         WriteContainingNameSpaceEnd(nameSpace);
                     }
@@ -553,28 +574,28 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                 var methodName = $"_{_sourceBuildInputs.PropertyName}";
 
 
-                if (_sourceBuildInputs.ChangingEventDeclareState != DeclareState.None)
+                if (_sourceBuildInputs.ChangingEventAccessibility != GenerateMemberAccessibility.None)
                 {
                     PutIndentSpace();
-                    _sourceBuilder.Append(ToAccessibilityToken(_sourceBuildInputs.ChangingEventDeclareState));
+                    _sourceBuilder.Append(ToAccessibilityToken(_sourceBuildInputs.ChangingEventAccessibility));
                     _sourceBuilder.Append(" event global::System.EventHandler? ");
                     _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
                     _sourceBuilder.AppendLine("Changing;");
                 }
 
-                if (_sourceBuildInputs.ChangedEventDeclareState != DeclareState.None)
+                if (_sourceBuildInputs.ChangedEventAccessibility != GenerateMemberAccessibility.None)
                 {
                     PutIndentSpace();
-                    _sourceBuilder.Append(ToAccessibilityToken(_sourceBuildInputs.ChangedEventDeclareState));
+                    _sourceBuilder.Append(ToAccessibilityToken(_sourceBuildInputs.ChangedEventAccessibility));
                     _sourceBuilder.Append(" event global::System.EventHandler? ");
                     _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
                     _sourceBuilder.AppendLine("Changed;");
                 }
 
-                if (_sourceBuildInputs.ChangingObservableDeclareState != DeclareState.None)
+                if (_sourceBuildInputs.ChangingObservableAccesibility != GenerateMemberAccessibility.None)
                 {
                     PutIndentSpace();
-                    _sourceBuilder.Append(ToAccessibilityToken(_sourceBuildInputs.ChangingObservableDeclareState));
+                    _sourceBuilder.Append(ToAccessibilityToken(_sourceBuildInputs.ChangingObservableAccesibility));
                     _sourceBuilder.Append(" global::System.IObservable<object?> ");
                     _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
                     _sourceBuilder.Append("ChangingAsObservable() =>  new global::Benutomo.Internal.EventToObservable(h => ");
@@ -584,10 +605,10 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                     _sourceBuilder.AppendLine("Changing -= h);");
                 }
 
-                if (_sourceBuildInputs.ChangedObservableDeclareState != DeclareState.None)
+                if (_sourceBuildInputs.ChangedObservableAccesibility != GenerateMemberAccessibility.None)
                 {
                     PutIndentSpace();
-                    _sourceBuilder.Append(ToAccessibilityToken(_sourceBuildInputs.ChangedObservableDeclareState));
+                    _sourceBuilder.Append(ToAccessibilityToken(_sourceBuildInputs.ChangedObservableAccesibility));
                     _sourceBuilder.Append(" global::System.IObservable<object?> ");
                     _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
                     _sourceBuilder.Append("ChangedAsObservable() =>  new global::Benutomo.Internal.EventToObservable(h => ");
@@ -689,22 +710,23 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
 
 
-                string ToAccessibilityToken(DeclareState declareState)
+                string ToAccessibilityToken(GenerateMemberAccessibility accessibility)
                 {
-                    switch (declareState)
+                    switch (accessibility)
                     {
-                        case DeclareState.Public: return "public";
-                        case DeclareState.Protected: return "protected";
-                        case DeclareState.Internal: return "internal";
-                        case DeclareState.InternalProrected: return "internal protected";
-                        case DeclareState.Private: return "private";
+                        case GenerateMemberAccessibility.Public: return "public";
+                        case GenerateMemberAccessibility.Protected: return "protected";
+                        case GenerateMemberAccessibility.Internal: return "internal";
+                        case GenerateMemberAccessibility.ProrectedInternal: return "protected internal";
+                        case GenerateMemberAccessibility.PrivateProrected: return "private protected";
+                        case GenerateMemberAccessibility.Private: return "private";
                         default: throw new InvalidOperationException();
                     }
                 }
                 
                 void WriteFieldChangeSection()
                 {
-                    if (_sourceBuildInputs.ChangingEventDeclareState != DeclareState.None)
+                    if (_sourceBuildInputs.ChangingEventAccessibility != GenerateMemberAccessibility.None)
                     {
                         PutIndentSpace();
                         _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
@@ -723,7 +745,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                     _sourceBuilder.Append(fieldName);
                     _sourceBuilder.AppendLine(" = value;");
 
-                    if (_sourceBuildInputs.ChangedEventDeclareState != DeclareState.None)
+                    if (_sourceBuildInputs.ChangedEventAccessibility != GenerateMemberAccessibility.None)
                     {
                         PutIndentSpace();
                         _sourceBuilder.Append(_sourceBuildInputs.PropertyName);
