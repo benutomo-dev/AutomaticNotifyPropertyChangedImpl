@@ -1,9 +1,12 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Collections.Immutable;
 using System.Diagnostics;
 
 namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 {
+    record struct GenerateEventArgInputs(TypeDefinitionInfo ContainingTypeInfo, ImmutableArray<(string Name, PropertyEventArgClass EventArgClass)> Properties);
+
     [Generator]
     public partial class AutomaticGenerator : IIncrementalGenerator
     {
@@ -40,8 +43,8 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
         private const string EventToObservableSource = @"
 using System;
 
-#pragma warning disable CS0436
 #nullable enable
+#pragma warning disable CS0436 // このソース内の型が、別の参照アセンブリのの型と競合している場合の警告を抑止(この警告は同じソースジェネレータを使用している参照プロジェクトのInternalVisibleTo属性に指定されている場合に発生する)
 
 namespace Benutomo.Internal
 {
@@ -138,8 +141,8 @@ namespace Benutomo.Internal
         private const string EnableNotificationSupportAttributeSource = @"
 using System;
 
-#pragma warning disable CS0436
 #nullable enable
+#pragma warning disable CS0436 // このソース内の型が、別の参照アセンブリのの型と競合している場合の警告を抑止(この警告は同じソースジェネレータを使用している参照プロジェクトのInternalVisibleTo属性に指定されている場合に発生する)
 
 namespace Benutomo
 {
@@ -159,8 +162,8 @@ namespace Benutomo
         private const string ChangedEventAttributeSource = @"
 using System;
 
-#pragma warning disable CS0436
 #nullable enable
+#pragma warning disable CS0436 // このソース内の型が、別の参照アセンブリのの型と競合している場合の警告を抑止(この警告は同じソースジェネレータを使用している参照プロジェクトのInternalVisibleTo属性に指定されている場合に発生する)
 
 namespace Benutomo
 {
@@ -170,11 +173,13 @@ namespace Benutomo
     [AttributeUsage(AttributeTargets.Property)]
     internal class ChangedEventAttribute : Attribute
     {
-        public NotificationAccessibility Accessibility { get; } = NotificationAccessibility.Public;
-
         public ChangedEventAttribute() {}
 
-        public ChangedEventAttribute(NotificationAccessibility Accessibility) {}
+        public ChangedEventAttribute(NotificationAccessibility accessibility) {}
+
+        public ChangedEventAttribute(ExplicitInterfaceImplementation enableExplicitInterfaceImplementation) {}
+
+        public ChangedEventAttribute(NotificationAccessibility accessibility, ExplicitInterfaceImplementation enableExplicitInterfaceImplementation) {}
     }
 }
 ";
@@ -184,8 +189,8 @@ namespace Benutomo
         private const string ChangingEventAttributeSource = @"
 using System;
 
-#pragma warning disable CS0436
 #nullable enable
+#pragma warning disable CS0436 // このソース内の型が、別の参照アセンブリのの型と競合している場合の警告を抑止(この警告は同じソースジェネレータを使用している参照プロジェクトのInternalVisibleTo属性に指定されている場合に発生する)
 
 namespace Benutomo
 {
@@ -195,11 +200,13 @@ namespace Benutomo
     [AttributeUsage(AttributeTargets.Property)]
     internal class ChangingEventAttribute : Attribute
     {
-        public NotificationAccessibility Accessibility { get; } = NotificationAccessibility.Public;
-
         public ChangingEventAttribute() {}
 
-        public ChangingEventAttribute(NotificationAccessibility Accessibility) {}
+        public ChangingEventAttribute(NotificationAccessibility accessibility) {}
+
+        public ChangingEventAttribute(ExplicitInterfaceImplementation enableExplicitInterfaceImplementation) {}
+
+        public ChangingEventAttribute(NotificationAccessibility accessibility, ExplicitInterfaceImplementation enableExplicitInterfaceImplementation) {}
     }
 }
 ";
@@ -209,8 +216,8 @@ namespace Benutomo
         private const string ChangedObservableAttributeSource = @"
 using System;
 
-#pragma warning disable CS0436
 #nullable enable
+#pragma warning disable CS0436 // このソース内の型が、別の参照アセンブリのの型と競合している場合の警告を抑止(この警告は同じソースジェネレータを使用している参照プロジェクトのInternalVisibleTo属性に指定されている場合に発生する)
 
 namespace Benutomo
 {
@@ -220,8 +227,6 @@ namespace Benutomo
     [AttributeUsage(AttributeTargets.Property)]
     internal class ChangedObservableAttribute : Attribute
     {
-        public NotificationAccessibility Accessibility { get; } = NotificationAccessibility.Public;
-
         public ChangedObservableAttribute() {}
 
         public ChangedObservableAttribute(NotificationAccessibility Accessibility) {}
@@ -234,8 +239,8 @@ namespace Benutomo
         private const string ChangingObservableAttributeSource = @"
 using System;
 
-#pragma warning disable CS0436
 #nullable enable
+#pragma warning disable CS0436 // このソース内の型が、別の参照アセンブリのの型と競合している場合の警告を抑止(この警告は同じソースジェネレータを使用している参照プロジェクトのInternalVisibleTo属性に指定されている場合に発生する
 
 namespace Benutomo
 {
@@ -245,8 +250,6 @@ namespace Benutomo
     [AttributeUsage(AttributeTargets.Property)]
     internal class ChangingObservableAttribute : Attribute
     {
-        public NotificationAccessibility Accessibility { get; } = NotificationAccessibility.Public;
-
         public ChangingObservableAttribute() {}
 
         public ChangingObservableAttribute(NotificationAccessibility Accessibility) {}
@@ -256,18 +259,17 @@ namespace Benutomo
 
         internal const string NotificationAccessibilityName = "NotificationAccessibility";
         internal const string NotificationAccessibilityFullyQualifiedMetadataName = "Benutomo.NotificationAccessibility";
-        internal const int NotificationAccessibilityDefault = 0;
-        internal const int NotificationAccessibilityPublic = 1;
-        internal const int NotificationAccessibilityProtected = 2;
-        internal const int NotificationAccessibilityInternal = 3;
-        internal const int NotificationAccessibilityProtectedInternal = 4;
-        internal const int NotificationAccessibilityPrivateProtected = 5;
-        internal const int NotificationAccessibilityPrivate = 6;
+        internal const int NotificationAccessibilityPublic = 0;
+        internal const int NotificationAccessibilityProtected = 1;
+        internal const int NotificationAccessibilityInternal = 2;
+        internal const int NotificationAccessibilityProtectedInternal = 3;
+        internal const int NotificationAccessibilityPrivateProtected = 4;
+        internal const int NotificationAccessibilityPrivate = 5;
         private const string NotificationAccessibilitySource = @"
 using System;
 
-#pragma warning disable CS0436
 #nullable enable
+#pragma warning disable CS0436 // このソース内の型が、別の参照アセンブリのの型と競合している場合の警告を抑止(この警告は同じソースジェネレータを使用している参照プロジェクトのInternalVisibleTo属性に指定されている場合に発生する
 
 namespace Benutomo
 {
@@ -276,7 +278,6 @@ namespace Benutomo
     /// </summary>
     internal enum NotificationAccessibility : int
     {
-        Default,
         Public,
         Protected,
         Internal,
@@ -287,44 +288,29 @@ namespace Benutomo
 }
 ";
 
-        record struct UsingSymbols(
-            INamedTypeSymbol EnableNotificationSupportAttribute,
-            INamedTypeSymbol ChangedEvent,
-            INamedTypeSymbol ChangingEvent,
-            INamedTypeSymbol ChangedObservable,
-            INamedTypeSymbol ChantingObservable,
-            INamedTypeSymbol NotifyPropertyChanged,
-            INamedTypeSymbol NotifyPropertyChanging
-            )
-        {
-            public bool Equals(UsingSymbols other)
-            {
-                var result =
-                    SymbolEqualityComparer.IncludeNullability.Equals(EnableNotificationSupportAttribute, other.EnableNotificationSupportAttribute) &&
-                    SymbolEqualityComparer.IncludeNullability.Equals(ChangedEvent, other.ChangedEvent) &&
-                    SymbolEqualityComparer.IncludeNullability.Equals(ChangingEvent, other.ChangingEvent) &&
-                    SymbolEqualityComparer.IncludeNullability.Equals(ChangedObservable, other.ChangedObservable) &&
-                    SymbolEqualityComparer.IncludeNullability.Equals(ChantingObservable, other.ChantingObservable) &&
-                    SymbolEqualityComparer.IncludeNullability.Equals(NotifyPropertyChanged, other.NotifyPropertyChanged) &&
-                    SymbolEqualityComparer.IncludeNullability.Equals(NotifyPropertyChanging, other.NotifyPropertyChanging);
+        internal const string ExplicitInterfaceImplementationName = "ExplicitInterfaceImplementation";
+        internal const string ExplicitInterfaceImplementationFullyQualifiedMetadataName = "Benutomo.ExplicitInterfaceImplementation";
+        internal const int ExplicitInterfaceImplementationEnable = 0;
+        internal const int ExplicitInterfaceImplementationDisable = 1;
+        private const string ExplicitInterfaceImplementationSource = @"
+using System;
 
-                WriteLogLine($"UsingSymbols.Equals() => {result}");
+#nullable enable
+#pragma warning disable CS0436 // このソース内の型が、別の参照アセンブリのの型と競合している場合の警告を抑止(この警告は同じソースジェネレータを使用している参照プロジェクトのInternalVisibleTo属性に指定されている場合に発生する
 
-                return result;
-            }
+namespace Benutomo
+{
+    /// <summary>
+    /// Todo
+    /// </summary>
+    internal enum ExplicitInterfaceImplementation : int
+    {
+        Enable,
+        Disable,
+    }
+}
+";
 
-            public override int GetHashCode()
-            {
-                return
-                    SymbolEqualityComparer.IncludeNullability.GetHashCode(EnableNotificationSupportAttribute) ^
-                    SymbolEqualityComparer.IncludeNullability.GetHashCode(ChangedEvent) ^
-                    SymbolEqualityComparer.IncludeNullability.GetHashCode(ChangingEvent) ^
-                    SymbolEqualityComparer.IncludeNullability.GetHashCode(ChangedObservable) ^
-                    SymbolEqualityComparer.IncludeNullability.GetHashCode(ChantingObservable) ^
-                    SymbolEqualityComparer.IncludeNullability.GetHashCode(NotifyPropertyChanged) ^
-                    SymbolEqualityComparer.IncludeNullability.GetHashCode(NotifyPropertyChanging);
-            }
-        }
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
@@ -347,6 +333,10 @@ namespace Benutomo
                         var changingObservableAttributeSymbol = compilation.GetTypeByMetadataName(ChangingObservableAttributeFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
                         var notifyPropertyChangedSymbol = compilation.GetTypeByMetadataName("System.ComponentModel.INotifyPropertyChanged") ?? throw new InvalidOperationException();
                         var notifyPropertyChangingSymbol = compilation.GetTypeByMetadataName("System.ComponentModel.INotifyPropertyChanging") ?? throw new InvalidOperationException();
+                        var notificationAccessibilitySymbol = compilation.GetTypeByMetadataName(NotificationAccessibilityFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                        var explicitInterfaceImplementationSymbol = compilation.GetTypeByMetadataName(ExplicitInterfaceImplementationFullyQualifiedMetadataName) ?? throw new InvalidOperationException();
+                        var actionSymbol = compilation.GetTypeByMetadataName("System.Action") ?? throw new InvalidOperationException();
+                        var eventHandlerSymbol = compilation.GetTypeByMetadataName("System.EventHandler") ?? throw new InvalidOperationException();
 
                         return new UsingSymbols(
                             enableNotificationSupportAttributeSymbol,
@@ -355,7 +345,11 @@ namespace Benutomo
                             changedObservableAttributeSymbol,
                             changingObservableAttributeSymbol,
                             notifyPropertyChangedSymbol,
-                            notifyPropertyChangingSymbol
+                            notifyPropertyChangingSymbol,
+                            notificationAccessibilitySymbol,
+                            explicitInterfaceImplementationSymbol,
+                            actionSymbol,
+                            eventHandlerSymbol
                         );
                     }
                     catch (OperationCanceledException)
@@ -376,16 +370,45 @@ namespace Benutomo
             // 今は、Where句を使用するとSource GeneratorがVSでインクリメンタルに実行されたときに
             // 対象のコードの状態や編集内容などによって突然内部状態が壊れて機能しなくなる問題がおきる。
 
-            var anotatedClasses = context.SyntaxProvider
-                .CreateSyntaxProvider(Predicate, Transform)
-                //.Where(v => v is not null)
-                .Combine(enableNotificationSupportAttributeSymbol)
-                .Select(PostTransform)
-                ;//.Where(v => v is not null);
+            var anotatedProperties = context.SyntaxProvider.CreateSyntaxProvider(IsAttributeAttachedPropertyDeclarationSystax, ToPropertySymbol);
 
-            context.RegisterSourceOutput(anotatedClasses, Generate);
+            var methodSourceBuildInputArgs = anotatedProperties
+                .Combine(enableNotificationSupportAttributeSymbol)
+                .Select(ToMethodSourceBuildInputArgs);
+
+            context.RegisterSourceOutput(methodSourceBuildInputArgs, GenerateMethod);
+
+            var propertyNameInputArgs = methodSourceBuildInputArgs
+                .Collect()
+                .SelectMany(ToPropertyInputArgs);
+
+            context.RegisterSourceOutput(propertyNameInputArgs, GenerateEventArg);
 
             WriteLogLine("End Initialize");
+
+            IEnumerable<(TypeDefinitionInfo, ImmutableArray<(string, PropertyEventArgClass)>)> ToPropertyInputArgs(ImmutableArray<MethodSourceBuildInputs?> sourceBuildInputs, CancellationToken cancellationToken)
+            {
+                foreach (var propertiesInClass in sourceBuildInputs.Where(v => !cancellationToken.IsCancellationRequested && v is not null).ToLookup(v => v!.ContainingTypeInfo))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var properties = Enumerable.Empty<(string, PropertyEventArgClass)>()
+                        .Concat(
+                            propertiesInClass
+                                .Where(v => v?.EnabledNotifyPropertyChanged == true)
+                                .SelectMany(v => v!.PropertyEventArgNames.Select(name => (name, PropertyEventArgClass.Changed)))
+                        )
+                        .Concat(
+                            propertiesInClass
+                                .Where(v => v?.EnabledNotifyPropertyChanging == true)
+                                .SelectMany(v => v!.PropertyEventArgNames.Select(name => (name, PropertyEventArgClass.Changing)))
+                        )
+                        .Distinct()
+                        .ToImmutableArray();
+
+                    yield return (propertiesInClass.Key, properties);
+                }
+            }
         }
 
         void PostInitialization(IncrementalGeneratorPostInitializationContext context)
@@ -413,11 +436,14 @@ namespace Benutomo
             context.CancellationToken.ThrowIfCancellationRequested();
             context.AddSource($"{NotificationAccessibilityName}.cs", NotificationAccessibilitySource);
 
+            context.CancellationToken.ThrowIfCancellationRequested();
+            context.AddSource($"{ExplicitInterfaceImplementationName}.cs", ExplicitInterfaceImplementationSource);
+
             WriteLogLine("End PostInitialization");
         }
 
         
-        bool Predicate(SyntaxNode node, CancellationToken cancellationToken)
+        bool IsAttributeAttachedPropertyDeclarationSystax(SyntaxNode node, CancellationToken cancellationToken)
         {
             //WriteLogLine("Predicate");
 
@@ -427,7 +453,7 @@ namespace Benutomo
             };
         }
 
-        IPropertySymbol? Transform(GeneratorSyntaxContext context, CancellationToken cancellationToken)
+        IPropertySymbol? ToPropertySymbol(GeneratorSyntaxContext context, CancellationToken cancellationToken)
         {
             WriteLogLine("Begin Transform");
             try
@@ -447,7 +473,7 @@ namespace Benutomo
             }
         }
 
-        SourceBuildInputs? PostTransform((IPropertySymbol? Left, UsingSymbols Right) v, CancellationToken ct)
+        MethodSourceBuildInputs? ToMethodSourceBuildInputArgs((IPropertySymbol? Left, UsingSymbols Right) v, CancellationToken ct)
         {
             var propertySymbol = v.Left;
             var usingSymbols = v.Right;
@@ -464,7 +490,7 @@ namespace Benutomo
                     return null;
                 }
 
-                var result = new SourceBuildInputs(propertySymbol, usingSymbols, enableNotificationSupportAttributeData);
+                var result = new MethodSourceBuildInputs(propertySymbol, usingSymbols, enableNotificationSupportAttributeData);
 
                 WriteLogLine($"End PostTransform ({propertySymbol.ContainingType?.Name}.{propertySymbol.Name})");
 
@@ -483,30 +509,101 @@ namespace Benutomo
             }
         }
 
-        void Generate(SourceProductionContext context, SourceBuildInputs? sourceBuildInputs)
+        void GenerateMethod(SourceProductionContext context, MethodSourceBuildInputs? sourceBuildInputs)
         {
             if (sourceBuildInputs is null) return;
 
-            WriteLogLine($"Begin Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.PropertyName})");
+            if (sourceBuildInputs.IsEventArgsOnly) return;
+
+
+            WriteLogLine($"Begin Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.InternalPropertyName})");
 
             try
             {
-                var sourceBuilder = new SourceBuilder(context, sourceBuildInputs);
+                Span<char> initialBuffer = stackalloc char[80000];
+
+                using var sourceBuilder = new MethodSourceBuilder(context, sourceBuildInputs, initialBuffer);
 
                 sourceBuilder.Build();
 
                 context.AddSource(sourceBuilder.HintName, sourceBuilder.SourceText);
 
-                WriteLogLine($"End Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.PropertyName}) => {sourceBuilder.HintName}");
+                WriteLogLine($"End Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.InternalPropertyName}) => {sourceBuilder.HintName}");
             }
             catch (OperationCanceledException)
             {
-                WriteLogLine($"Canceled Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.PropertyName})");
+                WriteLogLine($"Canceled Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.InternalPropertyName})");
                 throw;
             }
             catch (Exception ex)
             {
-                WriteLogLine($"Exception in Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.PropertyName})");
+                WriteLogLine($"Exception in Generate ({sourceBuildInputs.ContainingTypeInfo.Name}.{sourceBuildInputs.InternalPropertyName})");
+                WriteLogLine(ex.ToString());
+                throw;
+            }
+        }
+
+        void GenerateEventArg(SourceProductionContext context, (TypeDefinitionInfo containingTypeInfo, ImmutableArray<(string name, PropertyEventArgClass eventArgClass)> properties) args)
+        {
+            WriteLogLine($"Begin Generate {args.containingTypeInfo.Name} EventArgs");
+
+            try
+            {
+                Span<char> initialBuffer = stackalloc char[80000];
+
+                using var sourceBuilder = new ClassSourceBuilder(context, args.containingTypeInfo, initialBuffer);
+
+                sourceBuilder.AppendLine("#nullable enable");
+                sourceBuilder.AppendLine("#pragma warning disable CS0612,CS0618,CS0619");
+
+                sourceBuilder.WriteTypeDeclarationStart();
+
+                foreach (var property in args.properties)
+                {
+                    if (property.eventArgClass == PropertyEventArgClass.Changed)
+                    {
+                        var changedEventArgFieldName = $"__PropertyChangedEventArgs_{property.name}";
+
+                        sourceBuilder.PutIndentSpace();
+                        sourceBuilder.Append("private static global::System.ComponentModel.PropertyChangedEventArgs ");
+                        sourceBuilder.Append(changedEventArgFieldName);
+                        sourceBuilder.Append(" = new global::System.ComponentModel.PropertyChangedEventArgs(\"");
+                        sourceBuilder.Append(property.name);
+                        sourceBuilder.AppendLine("\");");
+                    }
+                    else if (property.eventArgClass == PropertyEventArgClass.Changing)
+                    {
+                        var changingEventArgFieldName = $"__PropertyChangingEventArgs_{property.name}";
+
+                        sourceBuilder.PutIndentSpace();
+                        sourceBuilder.Append("private static global::System.ComponentModel.PropertyChangingEventArgs ");
+                        sourceBuilder.Append(changingEventArgFieldName);
+                        sourceBuilder.Append(" = new global::System.ComponentModel.PropertyChangingEventArgs(\"");
+                        sourceBuilder.Append(property.name);
+                        sourceBuilder.AppendLine("\");");
+                    }
+                    else
+                    {
+                        Debug.Fail("invalid PropertyEventArgClass");
+                    }
+                }
+
+                sourceBuilder.WriteTypeDeclarationEnd();
+
+                var hintName = $"gen_{string.Join(".", sourceBuilder.HintingTypeNames)}.EventArgDeclarations_{sourceBuilder.NameSpace}.cs";
+
+                context.AddSource(hintName, sourceBuilder.SourceText);
+
+                WriteLogLine($"End Generate {args.containingTypeInfo.Name} EventArgs => {hintName}");
+            }
+            catch (OperationCanceledException)
+            {
+                WriteLogLine($"Canceled Generate {args.containingTypeInfo.Name} EventArgs");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                WriteLogLine($"Exception in Generate {args.containingTypeInfo.Name} EventArgs");
                 WriteLogLine(ex.ToString());
                 throw;
             }
