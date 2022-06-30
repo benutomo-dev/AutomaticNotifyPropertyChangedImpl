@@ -20,7 +20,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
         public ImmutableArray<string> PropertyEventArgNames;
 
-        public string PropertyName;
+        public string DefaultNotificationPropertyName;
 
         public string FieldName;
 
@@ -29,6 +29,8 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
         public string PropertyType;
 
         public bool PropertyTypeIsReferenceType;
+
+        public bool PropertyTypeIsInterlockExchangeable;
 
         public NullableAnnotation PropertyTypeNullableAnnotation;
 
@@ -62,14 +64,14 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                 var interfaceName = propertySymbol.ExplicitInterfaceImplementations[0].ContainingType.Name;
                 var interfacePropertyName = propertySymbol.ExplicitInterfaceImplementations[0].Name;
 
-                PropertyName = interfacePropertyName;
+                DefaultNotificationPropertyName = interfacePropertyName;
                 FieldName = $"__{interfaceName}_{interfacePropertyName}";
                 MethodName = $"_{interfaceName}_{interfacePropertyName}";
             }
             else
             {
                 PropertyEventArgNames = ImmutableArray.Create(propertySymbol.Name);
-                PropertyName = propertySymbol.Name;
+                DefaultNotificationPropertyName = propertySymbol.Name;
                 FieldName = $"__{char.ToLowerInvariant(propertySymbol.Name[0])}{propertySymbol.Name.Substring(1)}";
                 MethodName = $"_{propertySymbol.Name}";
             }
@@ -78,6 +80,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
             AppendFullTypeName(typeNameBuilder, propertySymbol.Type);
             PropertyType = typeNameBuilder.ToString();
             PropertyTypeIsReferenceType = propertySymbol.Type.IsReferenceType;
+            PropertyTypeIsInterlockExchangeable = IsInterlockedExchangable(propertySymbol.Type);
             PropertyTypeNullableAnnotation = propertySymbol.Type.NullableAnnotation;
 
             PropertyDeclaringSyntaxReferences = propertySymbol.DeclaringSyntaxReferences;
@@ -200,6 +203,19 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
             return;
 
+            static bool IsInterlockedExchangable(ITypeSymbol typeSymbol)
+            {
+                return typeSymbol switch
+                {
+                    { IsReferenceType: true } => true,
+                    { SpecialType: SpecialType.System_Int32 } => true,
+                    { SpecialType: SpecialType.System_Int64 } => true,
+                    { SpecialType: SpecialType.System_IntPtr } => true,
+                    { SpecialType: SpecialType.System_Single } => true,
+                    { SpecialType: SpecialType.System_Double } => true,
+                    _ => false,
+                };
+            }
 
 
             static void CollectExplicitImplimentaionEvents(
@@ -417,6 +433,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
                    PropertyEventArgNames.SequenceEqual(other.PropertyEventArgNames) &&
                    PropertyType == other.PropertyType &&
                    PropertyTypeIsReferenceType == other.PropertyTypeIsReferenceType &&
+                   PropertyTypeIsInterlockExchangeable == other.PropertyTypeIsInterlockExchangeable &&
                    PropertyTypeNullableAnnotation == other.PropertyTypeNullableAnnotation &&
                    IsEventArgsOnly == other.IsEventArgsOnly &&
                    EnabledNotifyPropertyChanging == other.EnabledNotifyPropertyChanging &&
@@ -436,6 +453,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(PropertyEventArgNames[0]);
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(PropertyType);
             hashCode = hashCode * -1521134295 + PropertyTypeIsReferenceType.GetHashCode();
+            hashCode = hashCode * -1521134295 + PropertyTypeIsInterlockExchangeable.GetHashCode();
             hashCode = hashCode * -1521134295 + PropertyTypeNullableAnnotation.GetHashCode();
             hashCode = hashCode * -1521134295 + IsEventArgsOnly.GetHashCode();
             hashCode = hashCode * -1521134295 + EnabledNotifyPropertyChanging.GetHashCode();

@@ -59,69 +59,78 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
         void InternalClear()
         {
-            _length = 0;
+            if (_length != 0)
+            {
+                _chachedSourceText = null;
+                _length = 0;
+            }
         }
 
-        void InternalAppend(string text)
+        void InternalAppend(ReadOnlySpan<char> text)
         {
+            if (text.Length <= 0) return;
+
+            _chachedSourceText = null;
+
             if (_length + text.Length < _buffer.Length)
             {
                 ExpandBuffer(text.Length);
             }
 
-            text.AsSpan().CopyTo(_buffer.Slice(_length));
+            text.CopyTo(_buffer.Slice(_length));
             _length += text.Length;
         }
 
         public void PutIndentSpace()
         {
-            _chachedSourceText = null;
-
             for (int i = 0; i < _currentIndentCount; i++)
             {
-                InternalAppend(IndentText);
+                InternalAppend(IndentText.AsSpan());
             }
         }
 
         public void Clear()
         {
-            _chachedSourceText = null;
-
             InternalClear();
         }
+        public void Append(string text) => Append(text.AsSpan());
+        public void AppendLine(string text) => AppendLine(text.AsSpan());
+        public void BeginBlock(string text) => BeginBlock(text.AsSpan());
 
-        public void Append(string text)
+        public void Append(ReadOnlySpan<char> text)
         {
-            _chachedSourceText = null;
-
             InternalAppend(text);
         }
 
-        public void AppendLine(string text)
+
+        public void AppendLine(ReadOnlySpan<char> text)
         {
-            InternalAppend(text); InternalAppend(Environment.NewLine);
+            InternalAppend(text);
+            AppendLine();
         }
 
         public void AppendLine()
         {
-            InternalAppend(Environment.NewLine);
+            InternalAppend(Environment.NewLine.AsSpan());
         }
 
         public void BeginTryBlock()
         {
-            BeginBlock("try");
+            BeginBlock("try".AsSpan());
         }
 
         public void BeginFinallyBlock()
         {
-            BeginBlock("finally");
+            BeginBlock("finally".AsSpan());
         }
 
-        public void BeginBlock(string blockHeadLine)
+        public void BeginBlock(ReadOnlySpan<char> blockHeadLine)
         {
             Context.CancellationToken.ThrowIfCancellationRequested();
 
-            PutIndentSpace(); InternalAppend(blockHeadLine); InternalAppend(Environment.NewLine);
+            PutIndentSpace();
+            InternalAppend(blockHeadLine);
+            AppendLine();
             BeginBlock();
         }
 
@@ -129,7 +138,9 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
         {
             Context.CancellationToken.ThrowIfCancellationRequested();
 
-            PutIndentSpace(); InternalAppend("{"); InternalAppend(Environment.NewLine);
+            PutIndentSpace();
+            InternalAppend("{".AsSpan());
+            AppendLine();
             _currentIndentCount++;
         }
 
@@ -138,7 +149,9 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
             Context.CancellationToken.ThrowIfCancellationRequested();
 
             _currentIndentCount--;
-            PutIndentSpace(); InternalAppend("}"); InternalAppend(Environment.NewLine);
+            PutIndentSpace();
+            InternalAppend("}".AsSpan());
+            AppendLine();
         }
     }
 

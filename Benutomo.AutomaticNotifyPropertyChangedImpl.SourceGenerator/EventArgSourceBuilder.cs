@@ -29,11 +29,14 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
         public void PutIndentSpace() => _sourceBuilder.PutIndentSpace();
         public void Clear() => _sourceBuilder.Clear();
         public void Append(string text) => _sourceBuilder.Append(text);
+        public void Append(ReadOnlySpan<char> text) => _sourceBuilder.Append(text);
         public void AppendLine(string text) => _sourceBuilder.AppendLine(text);
         public void AppendLine() => _sourceBuilder.AppendLine();
+        public void AppendLine(ReadOnlySpan<char> text) => _sourceBuilder.AppendLine(text);
         public void BeginTryBlock() => _sourceBuilder.BeginTryBlock();
         public void BeginFinallyBlock() => _sourceBuilder.BeginFinallyBlock();
         public void BeginBlock(string blockHeadLine) => _sourceBuilder.BeginBlock(blockHeadLine);
+        public void BeginBlock(ReadOnlySpan<char> text) => _sourceBuilder.BeginBlock(text);
         public void BeginBlock() => _sourceBuilder.BeginBlock();
         public void EndBlock() => _sourceBuilder.EndBlock();
         public void WriteTypeDeclarationStart() => _sourceBuilder.WriteTypeDeclarationStart();

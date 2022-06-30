@@ -38,16 +38,16 @@ namespace SourceGeneratorDebug
         //            set => _IsEnabled(value, EqualityComparer<bool?>.Default);
         //        }
 
-        //#nullable enable
-        //        [EnableNotificationSupport]
-        //        [ChangedEvent]
-        //        [ChangingEvent]
-        //        public string Text
-        //        {
-        //            get => _Text();
-        //            set => _Text(value);
-        //        }
-        //#nullable restore
+#nullable enable
+        [EnableNotificationSupport]
+        [ChangedEvent]
+        [ChangingEvent]
+        public string Text
+        {
+            get => _Text();
+            set => _Text(value);
+        }
+#nullable restore
 
 #nullable disable
         [EnableNotificationSupport]
@@ -83,3 +83,5 @@ namespace SourceGeneratorDebug
         //}
     }
 }
+
+
