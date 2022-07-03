@@ -1,5 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using System.Buffers;
+using System.Diagnostics;
 
 namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 {
@@ -44,7 +45,9 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
         void ExpandBuffer(int requiredSize)
         {
-            var nextBuffer = ArrayPool<char>.Shared.Rent(_buffer.Length + requiredSize);
+            Debug.Assert(_buffer.Length < _length + requiredSize);
+
+            var nextBuffer = ArrayPool<char>.Shared.Rent((_buffer.Length + requiredSize) * 2);
 
             _buffer.CopyTo(nextBuffer.AsSpan());
             _buffer = nextBuffer;
