@@ -72,7 +72,7 @@ namespace Benutomo.AutomaticNotifyPropertyChangedImpl.SourceGenerator
 
             _chachedSourceText = null;
 
-            if (_length + text.Length < _buffer.Length)
+            if (_buffer.Length < _length + text.Length)
             {
                 ExpandBuffer(text.Length);
             }
